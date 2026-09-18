@@ -6,6 +6,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.Optional;
+
 @Service
 public class ClienteService {
 
@@ -23,7 +24,7 @@ public class ClienteService {
         return clienteRepository.findById(id);
     }
 
-    public List<Cliente> buscarClientePorNome() {
+    public List<Cliente> listarClientes() {
         return clienteRepository.findAll();
     }
 
