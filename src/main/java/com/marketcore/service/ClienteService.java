@@ -1,11 +1,12 @@
 package com.marketcore.service;
 
 import com.marketcore.entidades.Cliente;
+import com.marketcore.exception.ClienteNaoEncontradoException;
 import com.marketcore.repository.ClienteRepository;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
-import java.util.Optional;
+
 
 @Service
 public class ClienteService {
@@ -20,8 +21,11 @@ public class ClienteService {
         return clienteRepository.save(cliente);
     }
 
-    public Optional<Cliente> buscarClientePorId(Long id) {
-        return clienteRepository.findById(id);
+    public Cliente buscarClientePorId(Long id) {
+        return clienteRepository.findById(id)
+                .orElseThrow(() ->
+                        new ClienteNaoEncontradoException("Cliente não encontrado: " + id)
+                );
     }
 
     public List<Cliente> listarClientes() {

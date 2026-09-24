@@ -2,10 +2,10 @@ package com.marketcore.controller;
 
 import com.marketcore.entidades.Cliente;
 import com.marketcore.service.ClienteService;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+import java.util.Optional;
 
 @RestController
 @RequestMapping("/clientes")
@@ -20,5 +20,15 @@ public class ClienteController {
     @PostMapping
     public Cliente cadastrarCliente(@RequestBody Cliente cliente) {
         return clienteService.cadastrarCliente(cliente);
+    }
+    @GetMapping
+    public List<Cliente> listarClientes() {
+        return clienteService.listarClientes();
+    }
+
+    @GetMapping("/{id}")
+    public Cliente buscarClientePorId(@PathVariable Long id) {
+        return clienteService.buscarClientePorId(id);
+
     }
 }
