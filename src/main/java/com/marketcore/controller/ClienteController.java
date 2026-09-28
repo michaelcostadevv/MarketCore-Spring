@@ -36,4 +36,10 @@ public class ClienteController {
     public Cliente atualizarCliente(@PathVariable Long id, @RequestBody Cliente clienteAtualizado) {
         return clienteService.atualizarCliente(id, clienteAtualizado);
     }
+
+    @DeleteMapping("/{id}")
+    public void excluirCliente(@PathVariable Long id) {
+        clienteService.excluirCliente(id);
+    }
+
 }
