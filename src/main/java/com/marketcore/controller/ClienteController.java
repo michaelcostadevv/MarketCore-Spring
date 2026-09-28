@@ -31,4 +31,9 @@ public class ClienteController {
         return clienteService.buscarClientePorId(id);
 
     }
+
+    @PutMapping("/{id}")
+    public Cliente atualizarCliente(@PathVariable Long id, @RequestBody Cliente clienteAtualizado) {
+        return clienteService.atualizarCliente(id, clienteAtualizado);
+    }
 }

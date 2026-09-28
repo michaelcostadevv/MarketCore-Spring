@@ -35,4 +35,13 @@ public class ClienteService {
     public void excluirCliente(Long id) {
         clienteRepository.deleteById(id);
     }
+
+    public Cliente atualizarCliente(Long id, Cliente clienteAtualizado) {
+        Cliente clienteExistente = buscarClientePorId(id);
+
+        clienteExistente.setNome(clienteAtualizado.getNome());
+        clienteExistente.setEmail(clienteAtualizado.getEmail());
+
+        return clienteRepository.save(clienteExistente);
+    }
 }
