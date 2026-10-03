@@ -13,5 +13,10 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
         public ResponseEntity<String> handleClienteNaoEncontrado(ClienteNaoEncontradoException ex) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ex.getMessage());
         }
+
+        @ExceptionHandler(ProdutoNaoEncontradoException.class)
+        public ResponseEntity<String> handleProdutoNaoEncontrado(ProdutoNaoEncontradoException ex) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ex.getMessage());
+        }
     }
 
