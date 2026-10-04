@@ -2,6 +2,8 @@ package com.marketcore.entidades;
 
 import jakarta.persistence.*;
 
+import javax.swing.*;
+
 @Entity
 @Table(name = "produto")
 public class Produto {
@@ -9,16 +11,15 @@ public class Produto {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false)
     private String nome;
-
-    @Column(nullable = false)
+    private Integer quantidade;
     private Double preco;
 
     public Produto() {}
 
-    public Produto(String nome, Double preco) {
+    public Produto(String nome,Integer quantidade, Double preco) {
        this.nome = nome;
+       this.quantidade = quantidade;
        this.preco = preco;
     }
 
@@ -44,5 +45,13 @@ public class Produto {
 
     public void setPreco(Double preco) {
         this.preco = preco;
+    }
+
+    public Integer getQuantidade() {
+        return quantidade;
+    }
+
+    public void setQuantidade(Integer quantidade) {
+        this.quantidade = quantidade;
     }
 }
