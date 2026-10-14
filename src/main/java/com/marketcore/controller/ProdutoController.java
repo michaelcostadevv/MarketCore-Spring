@@ -43,7 +43,7 @@ public class ProdutoController{
 
         // 2. Transforma cada panela num prato (DTO)
         List<ProdutoResponseDTO> produtosDTO = produtos.stream()
-                .map(p -> new ProdutoResponseDTO(p.getId(), p.getNome(), p.getPreco()))
+                .map(p -> new ProdutoResponseDTO(p.getId(), p.getNome(), p.getPreco(),p.getQuantidade()))
                 .collect(Collectors.toList());
 
         // 3. Serve os pratos ao cliente

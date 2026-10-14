@@ -1,18 +1,14 @@
 package com.marketcore.entidades;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.Id;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.ManyToOne;
-import jakarta.persistence.Table;
+import jakarta.persistence.*;
 
 @Entity
 @Table(name = "item_pedido")
 public class ItemPedido {
 
     @Id
-    private String id;
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
 
     @ManyToOne  //Duplo @ManyToOne: Conecta o item tanto ao objeto Pedido quanto ao objeto Produto
     @JoinColumn(name = "pedido_id", nullable = false)
@@ -33,7 +29,7 @@ public class ItemPedido {
     }
 
     // Construtor com parâmetros
-    public ItemPedido(String id, Pedido pedido, Produto produto, Integer quantidade, Double precoUnitario) {
+    public ItemPedido(Long id, Pedido pedido, Produto produto, Integer quantidade, Double precoUnitario) {
         this.id = id;
         this.pedido = pedido;
         this.produto = produto;
@@ -42,11 +38,11 @@ public class ItemPedido {
     }
 
     // Getters e Setters
-    public String getId() {
+    public Long getId() {
         return id;
     }
 
-    public void setId(String id) {
+    public void setId(Long id) {
         this.id = id;
     }
 

@@ -55,12 +55,6 @@ public class ItemPedidoService{
             produto.setQuantidade((produto.getQuantidade()) - itemPedido.getQuantidade());
             produtoRepository.save(produto);
 
-            // 5. Gera ID e salva o Item do Pedido
-            if (itemPedido.getId() == null || itemPedido.getId().isEmpty()) {
-                itemPedido.setId(UUID.randomUUID().toString());
-            }
-            itemPedido.setPedido(pedido);
-
             return itemPedidoRepository.save(itemPedido);
         }
     }
