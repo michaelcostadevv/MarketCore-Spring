@@ -1,0 +1,30 @@
+version: '3.8'
+
+services:
+  mysql-db:
+    image: mysql:8.0
+    container_name: marketcore-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: marketcore_db
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+
+  marketcore-api:
+    build: .
+    container_name: marketcore-api
+    ports:
+      - "8080:8080"
+    depends_on:
+      - mysql-db
+    environment:
+      # Estas variáveis sobrescrevem o seu application.properties automaticamente no Docker!
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql-db:3306/marketcore_db?createDatabaseIfNotExist=true&useSSL=false
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: root
+      SPRING_JPA_HIBERNATE_DDL_AUTO: update
+
+volumes:
+  mysql_data:

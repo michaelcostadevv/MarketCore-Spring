@@ -1,93 +1,129 @@
 package com.marketcore.service;
 
 import com.marketcore.dto.ItemPedidoRequestDTO;
+import com.marketcore.dto.ItemPedidoResponseDTO;
 import com.marketcore.dto.PedidoRequestDTO;
+import com.marketcore.dto.PedidoResponseDTO;
 import com.marketcore.entidades.Cliente;
 import com.marketcore.entidades.ItemPedido;
 import com.marketcore.entidades.Pedido;
 import com.marketcore.entidades.Produto;
+import com.marketcore.enums.StatusPedido;
 import com.marketcore.repository.ClienteRepository;
 import com.marketcore.repository.PedidoRepository;
 import com.marketcore.repository.ProdutoRepository;
+import jakarta.transaction.Transactional;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
 @Service
 public class PedidoService {
 
-    // Injetamos os repositórios necessários para buscar os dados reais
-    private final PedidoRepository pedidoRepository;
-    private final ClienteRepository clienteRepository;
-    private final ProdutoRepository produtoRepository;
+    @Autowired
+    private PedidoRepository pedidoRepository;
 
-    public PedidoService(PedidoRepository pedidoRepository, ClienteRepository clienteRepository, ProdutoRepository produtoRepository) {
-        this.pedidoRepository = pedidoRepository;
-        this.clienteRepository = clienteRepository;
-        this.produtoRepository = produtoRepository;
-    }
+    @Autowired
+    private ClienteRepository clienteRepository;
 
-    // @Transactional garante que ou salva TUDO (pedido, itens e baixa de estoque) ou não salva NADA se der erro.
+    @Autowired
+    private ProdutoRepository produtoRepository;
+
     @Transactional
-    public Pedido cadastrarPedido(PedidoRequestDTO dto) {
+    public PedidoResponseDTO criarPedido(PedidoRequestDTO requestDTO) {
 
-        // 1. Buscar o Cliente no banco usando o ID que veio no DTO
-        Cliente cliente = clienteRepository.findById(dto.getClienteId())
-                .orElseThrow(() -> new RuntimeException("Cliente não encontrado com o ID: " + dto.getClienteId()));
+        // 1. Busca o cliente real no banco de dados
+        Cliente cliente = clienteRepository.findById(requestDTO.getClienteId())
+                .orElseThrow(() -> new RuntimeException("Cliente não encontrado com ID: " + requestDTO.getClienteId()));
 
-        // 2. Preparar a Entidade Pedido
+        // 2. Prepara o Pedido
         Pedido pedido = new Pedido();
         pedido.setCliente(cliente);
-        pedido.setValorTotal(0.0); // Começa com zero e vamos somando no loop
+        pedido.setStatusPedido(StatusPedido.PENDENTE); // Sempre começa como pendente
 
-        // Lista que vai guardar as entidades ItemPedido
         List<ItemPedido> itens = new ArrayList<>();
+        double valorTotalPedido = 0.0;
 
-        // 3. Fazer um loop (for) em cada item que veio do Postman
-        for (ItemPedidoRequestDTO itemDto : dto.getItens()) {
+        // 3. Processa cada item do pedido
+        for (ItemPedidoRequestDTO itemDto : requestDTO.getItens()) {
 
-            // 3.1 Buscar o Produto real no banco
+            // Busca o produto real
             Produto produto = produtoRepository.findById(itemDto.getProdutoId())
-                    .orElseThrow(() -> new RuntimeException("Produto não encontrado com o ID: " + itemDto.getProdutoId()));
+                    .orElseThrow(() -> new RuntimeException("Produto não encontrado com ID: " + itemDto.getProdutoId()));
 
-            // 3.2 Verificar se há estoque suficiente (Regra de Negócio!)
+            // 4. Valida e Baixa o Estoque
             if (produto.getQuantidade() < itemDto.getQuantidade()) {
-                throw new RuntimeException("Estoque insuficiente para o produto: " + produto.getNome());
+                throw new RuntimeException("Estoque insuficiente para o produto: " + produto.getNome() +
+                        ". Quantidade disponível: " + produto.getQuantidade());
             }
-
-            // 3.3 Subtrair o estoque e atualizar o produto
             produto.setQuantidade(produto.getQuantidade() - itemDto.getQuantidade());
-            produtoRepository.save(produto);
+            produtoRepository.save(produto); // Salva a baixa no estoque
 
-            // 3.4 Criar a Entidade ItemPedido e preencher com os dados
-            ItemPedido itemPedido = new ItemPedido();
-            itemPedido.setProduto(produto);
-            itemPedido.setQuantidade(itemDto.getQuantidade());
-            itemPedido.setPrecoUnitario(produto.getPreco()); // Congela o preço no momento da compra
-            itemPedido.setPedido(pedido); // Liga o item ao pedido para não dar erro no banco
+            // 5. Cria o ItemPedido
+            ItemPedido item = new ItemPedido();
+            item.setProduto(produto);
+            item.setQuantidade(itemDto.getQuantidade());
+            item.setPrecoUnitario(produto.getPreco()); // Pega o preço do banco de dados (segurança)
+            item.setSubTotal(produto.getPreco() * itemDto.getQuantidade());
+            item.setPedido(pedido); // Conecta o item ao pedido
 
-            // 3.5 Adicionar na lista e somar ao valor total do pedido
-            itens.add(itemPedido);
-            pedido.setValorTotal(pedido.getValorTotal() + (produto.getPreco() * itemDto.getQuantidade()));
+            itens.add(item);
+            valorTotalPedido += item.getSubTotal();
         }
 
-        // 4. Colocar a lista de itens preenchida dentro do pedido
         pedido.setItens(itens);
+        pedido.setValorTotal(valorTotalPedido);
 
-        // 5. Salvar o pedido (O banco de dados vai salvar os itens automaticamente junto com ele)
-        return pedidoRepository.save(pedido);
+        // 6. Salva o pedido completo (com os itens juntos por causa do CascadeType.ALL)
+        Pedido pedidoSalvo = pedidoRepository.save(pedido);
+
+        // 7. Converte a Entidade salva para ResponseDTO
+        return converterParaResponseDTO(pedidoSalvo);
     }
 
-    // --- MÉTODOS DE BUSCA (Usados no GET) ---
-    public List<Pedido> listarTodos() {
-        return pedidoRepository.findAll();
-    }
-
-    public Pedido buscarPorId(Long id) {
-        return pedidoRepository.findById(id)
+    // --- NOVO MÉTODO: ATUALIZAR STATUS DO PEDIDO ---
+    @Transactional
+    public PedidoResponseDTO atualizarStatus(Long id, StatusPedido novoStatus) {
+        // Busca o pedido no banco
+        Pedido pedido = pedidoRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Pedido não encontrado com o ID: " + id));
+
+        // Regra de Negócio Exemplo: Não pode enviar um pedido que foi cancelado
+        if (pedido.getStatusPedido() == StatusPedido.CANCELADO && novoStatus != StatusPedido.CANCELADO) {
+            throw new RuntimeException("Não é possível alterar o status de um pedido que já foi CANCELADO.");
+        }
+
+        // Atualiza o status
+        pedido.setStatusPedido(novoStatus);
+
+        // Salva a alteração
+        Pedido pedidoAtualizado = pedidoRepository.save(pedido);
+
+        // Retorna o DTO atualizado
+        return converterParaResponseDTO(pedidoAtualizado);
+    }
+
+    // Método auxiliar para evitar repetição de código
+    private PedidoResponseDTO converterParaResponseDTO(Pedido pedido) {
+        List<ItemPedidoResponseDTO> itensDTO = new ArrayList<>();
+
+        for (ItemPedido item : pedido.getItens()) {
+            itensDTO.add(new ItemPedidoResponseDTO(
+                    item.getProduto().getNome(),
+                    item.getQuantidade(),
+                    item.getPrecoUnitario(),
+                    item.getSubTotal()
+            ));
+        }
+
+        return new PedidoResponseDTO(
+                        pedido.getId(),
+                        pedido.getCliente().getNome(),
+                        pedido.getValorTotal(),
+                itensDTO, // Converte o Enum para String no JSON
+                pedido.getStatusPedido().name()
+                );
     }
 }

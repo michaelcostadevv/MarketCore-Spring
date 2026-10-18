@@ -9,7 +9,7 @@ public class ItemPedidoResponseDTO {
     // Opcional, mas muito útil para o frontend:
     private Double subTotal;
 
-    public ItemPedidoResponseDTO() {}
+    public ItemPedidoResponseDTO(String nome, Integer quantidade, Double precoUnitario, Double subTotal) {}
 
     public ItemPedidoResponseDTO(String nomeProduto, Integer quantidade, Double precoUnitario) {
         this.nomeProduto = nomeProduto;

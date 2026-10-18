@@ -24,17 +24,21 @@ public class ItemPedido {
     @Column(name = "preco_unitario", nullable = false)
     private Double precoUnitario;
 
+    @Column(name = "sub_total", nullable = false)
+    private Double subTotal;
+
     // Construtor vazio (obrigatório para o JPA)
     public ItemPedido() {
     }
 
     // Construtor com parâmetros
-    public ItemPedido(Long id, Pedido pedido, Produto produto, Integer quantidade, Double precoUnitario) {
+    public ItemPedido(Long id, Pedido pedido, Produto produto, Integer quantidade, Double precoUnitario, Double subTotal) {
         this.id = id;
         this.pedido = pedido;
         this.produto = produto;
         this.quantidade = quantidade;
         this.precoUnitario = precoUnitario;
+        this.subTotal = subTotal;
     }
 
     // Getters e Setters
@@ -77,4 +81,14 @@ public class ItemPedido {
     public void setPrecoUnitario(Double precoUnitario) {
         this.precoUnitario = precoUnitario;
     }
+
+    public Double getSubTotal() {
+        return subTotal;
+    }
+
+    public void setSubTotal(Double subTotal) {
+        this.subTotal = subTotal;
+    }
 }
+
+
