@@ -9,6 +9,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 @RestController
 @RequestMapping("/pedidos")
 public class PedidoController {
@@ -23,7 +25,7 @@ public class PedidoController {
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
-    // NOVO ENDPOINT: Atualizar o STATUS do pedido
+    // ENDPOINT: Atualizar o STATUS do pedido
     @PatchMapping("/{id}/status")
     public ResponseEntity<PedidoResponseDTO> atualizarStatus(
             @PathVariable Long id,
@@ -31,5 +33,15 @@ public class PedidoController {
 
         PedidoResponseDTO pedidoAtualizado = pedidoService.atualizarStatus(id, status);
         return ResponseEntity.ok(pedidoAtualizado);
+    }
+
+    // ENDPOINT: Buscar lista de pedidos filtrando pelo status
+    @GetMapping("/status")
+    public ResponseEntity<List<PedidoResponseDTO>> buscarPorStatus(@RequestParam StatusPedido status) {
+
+        List<PedidoResponseDTO> pedidos = pedidoService.buscarPorStatus(status);
+
+        // Retorna 200 OK com a lista (mesmo que a lista venha vazia, o que é o correto)
+        return ResponseEntity.ok(pedidos);
     }
 }

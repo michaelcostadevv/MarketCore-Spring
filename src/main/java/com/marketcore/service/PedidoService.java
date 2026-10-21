@@ -9,6 +9,7 @@ import com.marketcore.entidades.ItemPedido;
 import com.marketcore.entidades.Pedido;
 import com.marketcore.entidades.Produto;
 import com.marketcore.enums.StatusPedido;
+import com.marketcore.exception.ResourceNotFoundException;
 import com.marketcore.repository.ClienteRepository;
 import com.marketcore.repository.PedidoRepository;
 import com.marketcore.repository.ProdutoRepository;
@@ -88,7 +89,7 @@ public class PedidoService {
     public PedidoResponseDTO atualizarStatus(Long id, StatusPedido novoStatus) {
         // Busca o pedido no banco
         Pedido pedido = pedidoRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Pedido não encontrado com o ID: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Pedido não encontrado com o ID: " + id));
 
         // Regra de Negócio Exemplo: Não pode enviar um pedido que foi cancelado
         if (pedido.getStatusPedido() == StatusPedido.CANCELADO && novoStatus != StatusPedido.CANCELADO) {
@@ -126,4 +127,19 @@ public class PedidoService {
                 pedido.getStatusPedido().name()
                 );
     }
+
+    // NOVO MÉTODO: BUSCAR POR STATUS
+    public List<PedidoResponseDTO>buscarPorStatus(StatusPedido status) {
+        // Busca a lista de pedidos no banco de dados filtrando pelo Enum
+        List<Pedido> pedidos = pedidoRepository.findByStatusPedido(status);
+        // Cria uma lista vazia de DTOs
+        List<PedidoResponseDTO> responseList = new ArrayList<>();
+        // Converte cada Pedido encontrado para um ResponseDTO
+        for (Pedido pedido : pedidos) {
+            responseList.add(converterParaResponseDTO(pedido));
+        }
+        return responseList;
+    }
+
+
 }
