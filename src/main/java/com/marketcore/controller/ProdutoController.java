@@ -2,7 +2,7 @@ package com.marketcore.controller;
 
 import com.marketcore.dto.ProdutoRequestDTO;
 import com.marketcore.dto.ProdutoResponseDTO;
-import com.marketcore.entidades.Produto;
+import com.marketcore.entity.Produto;
 import com.marketcore.service.ProdutoService;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;

@@ -1,6 +1,6 @@
 package com.marketcore.service;
 
-import com.marketcore.entidades.Cliente;
+import com.marketcore.entity.Cliente;
 import com.marketcore.exception.ClienteNaoEncontradoException;
 import com.marketcore.repository.ClienteRepository;
 import org.springframework.stereotype.Service;

@@ -1,4 +1,4 @@
-package com.marketcore.entidades;
+package com.marketcore.entity;
 
 import jakarta.persistence.*;
 

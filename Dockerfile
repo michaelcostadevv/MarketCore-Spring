@@ -1,12 +1,13 @@
-# Usa o Java 17 (se estiver usando Java 21, mude para eclipse-temurin:21-jdk-alpine)
-FROM eclipse-temurin:21-jdk-alpine
+ # Etapa 1: Constrói o projeto usando Maven
+FROM eclipse-temurin:21-jdk-alpine AS build
 WORKDIR /app
+COPY . .
+RUN chmod +x mvnw
+RUN ./mvnw clean package -DskipTests
 
-# Copia o arquivo .jar compilado para dentro do contêiner
-COPY target/*.jar app.jar
-
-# Expõe a porta 8080
+# Etapa 2: Executa a aplicação com uma imagem mais leve apenas de JRE
+FROM eclipse-temurin:21-jre-alpine
+WORKDIR /app
+COPY --from=build /app/target/*.jar app.jar
 EXPOSE 8080
-
-# Comando para iniciar a aplicação
 ENTRYPOINT ["java", "-jar", "app.jar"]

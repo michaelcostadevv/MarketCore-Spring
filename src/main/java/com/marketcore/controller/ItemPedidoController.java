@@ -1,6 +1,6 @@
 package com.marketcore.controller;
 
-import com.marketcore.entidades.ItemPedido;
+import com.marketcore.entity.ItemPedido;
 import com.marketcore.service.ItemPedidoService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;

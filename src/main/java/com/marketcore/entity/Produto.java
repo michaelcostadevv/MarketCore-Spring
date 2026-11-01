@@ -1,8 +1,6 @@
-package com.marketcore.entidades;
+package com.marketcore.entity;
 
 import jakarta.persistence.*;
-
-import javax.swing.*;
 
 @Entity
 @Table(name = "produto")

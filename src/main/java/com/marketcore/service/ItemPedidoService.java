@@ -1,8 +1,8 @@
 package com.marketcore.service;
 
-import com.marketcore.entidades.ItemPedido;
-import com.marketcore.entidades.Pedido;
-import com.marketcore.entidades.Produto;
+import com.marketcore.entity.ItemPedido;
+import com.marketcore.entity.Pedido;
+import com.marketcore.entity.Produto;
 import com.marketcore.repository.ItemPedidoRepository;
 import com.marketcore.repository.PedidoRepository;
 import com.marketcore.repository.ProdutoRepository;
@@ -11,7 +11,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional; // Importante para regras de negócio
 
 import java.util.List;
-import java.util.UUID;
 
 @Service
 public class ItemPedidoService{

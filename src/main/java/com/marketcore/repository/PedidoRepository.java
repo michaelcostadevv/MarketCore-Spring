@@ -1,6 +1,6 @@
 package com.marketcore.repository;
 
-import com.marketcore.entidades.Pedido;
+import com.marketcore.entity.Pedido;
 import com.marketcore.enums.StatusPedido;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
