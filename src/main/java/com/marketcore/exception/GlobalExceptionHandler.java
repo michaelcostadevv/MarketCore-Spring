@@ -9,6 +9,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -84,7 +85,10 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(AuthenticationException.class)
     public ResponseEntity<ErroResposta> autenticacao(AuthenticationException e, HttpServletRequest req) {
-        return responder(HttpStatus.UNAUTHORIZED, "E-mail ou senha inválidos", req);
+        String mensagem = (e instanceof BadCredentialsException)
+                ? "E-mail ou senha inválidos"
+                : "Autenticação necessária: envie um token JWT válido no cabeçalho Authorization";
+        return responder(HttpStatus.UNAUTHORIZED, mensagem, req);
     }
 
     @ExceptionHandler(AccessDeniedException.class)
