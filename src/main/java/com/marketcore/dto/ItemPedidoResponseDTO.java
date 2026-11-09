@@ -1,32 +1,22 @@
 package com.marketcore.dto;
 
-public class ItemPedidoResponseDTO {
+import com.marketcore.entity.ItemPedido;
 
-    private String nomeProduto;
-    private Integer quantidade;
-    private Double precoUnitario;
+import java.math.BigDecimal;
 
-    // Opcional, mas muito útil para o frontend:
-    private Double subTotal;
-
-    public ItemPedidoResponseDTO(String nome, Integer quantidade, Double precoUnitario, Double subTotal) {}
-
-    public ItemPedidoResponseDTO(String nomeProduto, Integer quantidade, Double precoUnitario) {
-        this.nomeProduto = nomeProduto;
-        this.quantidade = quantidade;
-        this.precoUnitario = precoUnitario;
-        this.subTotal = quantidade * precoUnitario;
+public record ItemPedidoResponseDTO(
+        Long produtoId,
+        String nomeProduto,
+        Integer quantidade,
+        BigDecimal precoUnitario,
+        BigDecimal subTotal
+) {
+    public static ItemPedidoResponseDTO de(ItemPedido item) {
+        return new ItemPedidoResponseDTO(
+                item.getProduto().getId(),
+                item.getProduto().getNome(),
+                item.getQuantidade(),
+                item.getPrecoUnitario(),
+                item.getSubTotal());
     }
-
-    public String getNomeProduto() { return nomeProduto; }
-    public void setNomeProduto(String nomeProduto) { this.nomeProduto = nomeProduto; }
-
-    public Integer getQuantidade() { return quantidade; }
-    public void setQuantidade(Integer quantidade) { this.quantidade = quantidade; }
-
-    public Double getPrecoUnitario() { return precoUnitario; }
-    public void setPrecoUnitario(Double precoUnitario) { this.precoUnitario = precoUnitario; }
-
-    public Double getSubTotal() { return subTotal; }
-    public void setSubTotal(Double subTotal) { this.subTotal = subTotal; }
 }

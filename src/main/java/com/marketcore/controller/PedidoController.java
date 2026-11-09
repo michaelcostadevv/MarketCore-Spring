@@ -1,47 +1,55 @@
 package com.marketcore.controller;
 
+import com.marketcore.dto.AtualizarStatusRequestDTO;
 import com.marketcore.dto.PedidoRequestDTO;
 import com.marketcore.dto.PedidoResponseDTO;
 import com.marketcore.enums.StatusPedido;
 import com.marketcore.service.PedidoService;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpStatus;
+import jakarta.validation.Valid;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
-import java.util.List;
+import java.net.URI;
 
 @RestController
 @RequestMapping("/pedidos")
 public class PedidoController {
 
-    @Autowired
-    private PedidoService pedidoService;
+    private final PedidoService pedidoService;
 
-    // Endpoint para CRIAR um novo pedido
+    public PedidoController(PedidoService pedidoService) {
+        this.pedidoService = pedidoService;
+    }
+
     @PostMapping
-    public ResponseEntity<PedidoResponseDTO> criarPedido(@RequestBody PedidoRequestDTO requestDTO) {
-        PedidoResponseDTO response = pedidoService.criarPedido(requestDTO);
-        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    public ResponseEntity<PedidoResponseDTO> criar(@Valid @RequestBody PedidoRequestDTO dto) {
+        PedidoResponseDTO criado = pedidoService.criar(dto);
+        URI location = ServletUriComponentsBuilder.fromCurrentRequest()
+                .path("/{id}").buildAndExpand(criado.id()).toUri();
+        return ResponseEntity.created(location).body(criado);
     }
 
-    // ENDPOINT: Atualizar o STATUS do pedido
+    /** Lista pedidos, opcionalmente filtrando por status: GET /pedidos?status=PAGO */
+    @GetMapping
+    public Page<PedidoResponseDTO> listar(
+            @RequestParam(required = false) StatusPedido status,
+            @PageableDefault(size = 20, sort = "dataPedido", direction = Sort.Direction.DESC) Pageable pageable) {
+        return pedidoService.listar(status, pageable);
+    }
+
+    @GetMapping("/{id}")
+    public PedidoResponseDTO buscarPorId(@PathVariable Long id) {
+        return pedidoService.buscarPorId(id);
+    }
+
     @PatchMapping("/{id}/status")
-    public ResponseEntity<PedidoResponseDTO> atualizarStatus(
-            @PathVariable Long id,
-            @RequestParam StatusPedido status) {
-
-        PedidoResponseDTO pedidoAtualizado = pedidoService.atualizarStatus(id, status);
-        return ResponseEntity.ok(pedidoAtualizado);
-    }
-
-    // ENDPOINT: Buscar lista de pedidos filtrando pelo status
-    @GetMapping("/status")
-    public ResponseEntity<List<PedidoResponseDTO>> buscarPorStatus(@RequestParam StatusPedido status) {
-
-        List<PedidoResponseDTO> pedidos = pedidoService.buscarPorStatus(status);
-
-        // Retorna 200 OK com a lista (mesmo que a lista venha vazia, o que é o correto)
-        return ResponseEntity.ok(pedidos);
+    public PedidoResponseDTO atualizarStatus(@PathVariable Long id,
+                                             @Valid @RequestBody AtualizarStatusRequestDTO dto) {
+        return pedidoService.atualizarStatus(id, dto.status());
     }
 }

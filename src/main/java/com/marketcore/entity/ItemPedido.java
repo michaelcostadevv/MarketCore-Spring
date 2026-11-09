@@ -2,6 +2,8 @@ package com.marketcore.entity;
 
 import jakarta.persistence.*;
 
+import java.math.BigDecimal;
+
 @Entity
 @Table(name = "item_pedido")
 public class ItemPedido {
@@ -10,85 +12,40 @@ public class ItemPedido {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne  //Duplo @ManyToOne: Conecta o item tanto ao objeto Pedido quanto ao objeto Produto
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "pedido_id", nullable = false)
     private Pedido pedido;
 
-    @ManyToOne
-    @JoinColumn(name = "produto_id", nullable = false) // @JoinColumn: Garante que as chaves estrangeiras (pedido_id e produto_id) conversem exatamente com as colunas criadas no MySQL.
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "produto_id", nullable = false)
     private Produto produto;
 
     @Column(nullable = false)
     private Integer quantidade;
 
-    @Column(name = "preco_unitario", nullable = false)
-    private Double precoUnitario;
+    /** Preço copiado do produto no momento da compra: mudanças futuras de preço não alteram pedidos antigos. */
+    @Column(name = "preco_unitario", nullable = false, precision = 12, scale = 2)
+    private BigDecimal precoUnitario;
 
-    @Column(name = "sub_total", nullable = false)
-    private Double subTotal;
+    @Column(name = "sub_total", nullable = false, precision = 12, scale = 2)
+    private BigDecimal subTotal;
 
-    // Construtor vazio (obrigatório para o JPA)
-    public ItemPedido() {
-    }
+    protected ItemPedido() {} // exigido pelo JPA
 
-    // Construtor com parâmetros
-    public ItemPedido(Long id, Pedido pedido, Produto produto, Integer quantidade, Double precoUnitario, Double subTotal) {
-        this.id = id;
-        this.pedido = pedido;
+    public ItemPedido(Produto produto, int quantidade) {
         this.produto = produto;
         this.quantidade = quantidade;
-        this.precoUnitario = precoUnitario;
-        this.subTotal = subTotal;
+        this.precoUnitario = produto.getPreco();
+        this.subTotal = precoUnitario.multiply(BigDecimal.valueOf(quantidade));
     }
 
-    // Getters e Setters
-    public Long getId() {
-        return id;
-    }
+    public Long getId() { return id; }
 
-    public void setId(Long id) {
-        this.id = id;
-    }
+    public Pedido getPedido() { return pedido; }
+    void setPedido(Pedido pedido) { this.pedido = pedido; }
 
-    public Pedido getPedido() {
-        return pedido;
-    }
-
-    public void setPedido(Pedido pedido) {
-        this.pedido = pedido;
-    }
-
-    public Produto getProduto() {
-        return produto;
-    }
-
-    public void setProduto(Produto produto) {
-        this.produto = produto;
-    }
-
-    public Integer getQuantidade() {
-        return quantidade;
-    }
-
-    public void setQuantidade(Integer quantidade) {
-        this.quantidade = quantidade;
-    }
-
-    public Double getPrecoUnitario() {
-        return precoUnitario;
-    }
-
-    public void setPrecoUnitario(Double precoUnitario) {
-        this.precoUnitario = precoUnitario;
-    }
-
-    public Double getSubTotal() {
-        return subTotal;
-    }
-
-    public void setSubTotal(Double subTotal) {
-        this.subTotal = subTotal;
-    }
+    public Produto getProduto() { return produto; }
+    public Integer getQuantidade() { return quantidade; }
+    public BigDecimal getPrecoUnitario() { return precoUnitario; }
+    public BigDecimal getSubTotal() { return subTotal; }
 }
-
-

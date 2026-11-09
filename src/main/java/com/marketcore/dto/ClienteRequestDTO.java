@@ -1,25 +1,16 @@
 package com.marketcore.dto;
-// ENTRADA
-public class ClienteRequestDTO {
 
-    private Long id;
-    private String nome;
-    private String email;
+import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 
-    public ClienteRequestDTO() {}
+/** Entrada de cliente. Não tem "id": o ID é gerado pelo banco e nunca vem do corpo da requisição. */
+public record ClienteRequestDTO(
+        @NotBlank(message = "O nome é obrigatório")
+        @Size(max = 120, message = "O nome deve ter no máximo 120 caracteres")
+        String nome,
 
-    public ClienteRequestDTO(Long id, String nome, String email) {
-        this.id = id;
-        this.nome = nome;
-        this.email = email;
-    }
-
-    public Long getId() { return id; }
-    public void setId(Long id) { this.id = id; }
-
-    public String getNome() { return nome; }
-    public void setNome(String nome) { this.nome = nome; }
-
-    public String getEmail() { return email; }
-    public void setEmail(String email) { this.email = email; }
-}
+        @NotBlank(message = "O e-mail é obrigatório")
+        @Email(message = "E-mail inválido")
+        String email
+) {}

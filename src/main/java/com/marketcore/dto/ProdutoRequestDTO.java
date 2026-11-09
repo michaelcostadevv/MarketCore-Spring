@@ -1,33 +1,25 @@
 package com.marketcore.dto;
 
-import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.Digits;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
+import jakarta.validation.constraints.PositiveOrZero;
+import jakarta.validation.constraints.Size;
 
-public class ProdutoRequestDTO {
+import java.math.BigDecimal;
 
-    // @NotBlank garante que o texto não é nulo e não está vazio (não aceita só espaços)
-    @NotBlank(message = "O nome do produto é obrigatório")
-    private String nome;
+public record ProdutoRequestDTO(
+        @NotBlank(message = "O nome do produto é obrigatório")
+        @Size(max = 120, message = "O nome deve ter no máximo 120 caracteres")
+        String nome,
 
-    // @Min(0) garante que o sistema não aceita números negativos
-    @NotNull(message = "A quantidade é obrigatória")
-    @Min(value = 0, message = "A quantidade não pode ser negativa")
-    private Integer quantidade;
+        @NotNull(message = "A quantidade é obrigatória")
+        @PositiveOrZero(message = "A quantidade não pode ser negativa")
+        Integer quantidade,
 
-    @NotNull(message = "O preço é obrigatório")
-    @Min(value = 0, message = "O preço não pode ser negativo")
-    private Double preco;
-
-    // Construtores, Getters e Setters
-    public ProdutoRequestDTO() {}
-
-    public String getNome() { return nome; }
-    public void setNome(String nome) { this.nome = nome; }
-
-    public Integer getQuantidade() { return quantidade; }
-    public void setQuantidade(Integer quantidade) { this.quantidade = quantidade; }
-
-    public Double getPreco() { return preco; }
-    public void setPreco(Double preco) { this.preco = preco; }
-}
+        @NotNull(message = "O preço é obrigatório")
+        @Positive(message = "O preço deve ser maior que zero")
+        @Digits(integer = 10, fraction = 2, message = "O preço deve ter no máximo 2 casas decimais")
+        BigDecimal preco
+) {}
