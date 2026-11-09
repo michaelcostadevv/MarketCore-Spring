@@ -43,6 +43,14 @@ class ApiIntegrationTest {
     }
 
     @Test
+    void documentacaoOpenApiEPublicaEDeclaraAutenticacaoJwt() throws Exception {
+        mvc.perform(get("/v3/api-docs"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.components.securitySchemes.bearerAuth.scheme").value("bearer"))
+                .andExpect(jsonPath("$.paths['/pedidos']").exists());
+    }
+
+    @Test
     void rotaProtegidaSemTokenRetorna401NoFormatoPadrao() throws Exception {
         mvc.perform(get("/produtos"))
                 .andExpect(status().isUnauthorized())
