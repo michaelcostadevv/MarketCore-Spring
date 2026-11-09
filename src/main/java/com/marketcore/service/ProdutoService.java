@@ -1,13 +1,17 @@
 package com.marketcore.service;
 
+import com.marketcore.dto.ProdutoRequestDTO;
+import com.marketcore.dto.ProdutoResponseDTO;
 import com.marketcore.entity.Produto;
 import com.marketcore.exception.RecursoNaoEncontradoException;
 import com.marketcore.repository.ProdutoRepository;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
-
-import java.util.List;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
+@Transactional(readOnly = true)
 public class ProdutoService {
 
     private final ProdutoRepository produtoRepository;
@@ -16,32 +20,38 @@ public class ProdutoService {
         this.produtoRepository = produtoRepository;
     }
 
-    public Produto cadastrarProduto(Produto produto) {
-        return produtoRepository.save(produto);
+    @Transactional
+    public ProdutoResponseDTO cadastrar(ProdutoRequestDTO dto) {
+        Produto produto = new Produto(dto.nome().trim(), dto.quantidade(), dto.preco());
+        return ProdutoResponseDTO.de(produtoRepository.save(produto));
     }
 
-    public Produto buscarProdutoPorId(Long id) {
+    public ProdutoResponseDTO buscarPorId(Long id) {
+        return ProdutoResponseDTO.de(buscarEntidade(id));
+    }
+
+    public Page<ProdutoResponseDTO> listar(Pageable pageable) {
+        return produtoRepository.findAll(pageable).map(ProdutoResponseDTO::de);
+    }
+
+    @Transactional
+    public ProdutoResponseDTO atualizar(Long id, ProdutoRequestDTO dto) {
+        Produto produto = buscarEntidade(id);
+        produto.setNome(dto.nome().trim());
+        produto.setPreco(dto.preco());
+        produto.setQuantidade(dto.quantidade());
+        return ProdutoResponseDTO.de(produto);
+    }
+
+    @Transactional
+    public void excluir(Long id) {
+        // Se o produto estiver em algum pedido, o banco recusa e o handler responde 409
+        produtoRepository.delete(buscarEntidade(id));
+        produtoRepository.flush();
+    }
+
+    private Produto buscarEntidade(Long id) {
         return produtoRepository.findById(id)
-                .orElseThrow(()
-                        -> new RecursoNaoEncontradoException("Produto", id)
-                );
-    }
-
-    public List<Produto> listarProdutos() {
-       return produtoRepository.findAll();
-    }
-
-    public void excluirProdutoPorId(Long id) {
-        buscarProdutoPorId(id);
-        produtoRepository.deleteById(id);
-    }
-
-    public Produto atualizarProduto(Long id , Produto produtoAtualizado){
-        Produto produtoExistente = buscarProdutoPorId(id);
-
-        produtoExistente.setNome(produtoAtualizado.getNome());
-        produtoExistente.setPreco(produtoAtualizado.getPreco());
-
-        return  produtoRepository.save(produtoExistente);
+                .orElseThrow(() -> new RecursoNaoEncontradoException("Produto", id));
     }
 }

@@ -1,7 +1,6 @@
 package com.marketcore.service;
 
 import com.marketcore.dto.ItemPedidoRequestDTO;
-import com.marketcore.dto.ItemPedidoResponseDTO;
 import com.marketcore.dto.PedidoRequestDTO;
 import com.marketcore.dto.PedidoResponseDTO;
 import com.marketcore.entity.Cliente;
@@ -10,137 +9,73 @@ import com.marketcore.entity.Pedido;
 import com.marketcore.entity.Produto;
 import com.marketcore.enums.StatusPedido;
 import com.marketcore.exception.RecursoNaoEncontradoException;
-import com.marketcore.exception.RegraNegocioException;
 import com.marketcore.repository.ClienteRepository;
 import com.marketcore.repository.PedidoRepository;
 import com.marketcore.repository.ProdutoRepository;
-import jakarta.transaction.Transactional;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
-
-import java.util.ArrayList;
-import java.util.List;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
+@Transactional(readOnly = true)
 public class PedidoService {
 
-    @Autowired
-    private PedidoRepository pedidoRepository;
+    private final PedidoRepository pedidoRepository;
+    private final ClienteRepository clienteRepository;
+    private final ProdutoRepository produtoRepository;
 
-    @Autowired
-    private ClienteRepository clienteRepository;
-
-    @Autowired
-    private ProdutoRepository produtoRepository;
-
-    @Transactional
-    public PedidoResponseDTO criarPedido(PedidoRequestDTO requestDTO) {
-
-        // 1. Busca o cliente real no banco de dados
-        Cliente cliente = clienteRepository.findById(requestDTO.getClienteId())
-                .orElseThrow(() -> new RecursoNaoEncontradoException("Cliente", requestDTO.getClienteId()));
-
-        // 2. Prepara o Pedido
-        Pedido pedido = new Pedido();
-        pedido.setCliente(cliente);
-        pedido.setStatusPedido(StatusPedido.PENDENTE); // Sempre começa como pendente
-
-        List<ItemPedido> itens = new ArrayList<>();
-        double valorTotalPedido = 0.0;
-
-        // 3. Processa cada item do pedido
-        for (ItemPedidoRequestDTO itemDto : requestDTO.getItens()) {
-
-            // Busca o produto real
-            Produto produto = produtoRepository.findById(itemDto.getProdutoId())
-                    .orElseThrow(() -> new RecursoNaoEncontradoException("Produto", itemDto.getProdutoId()));
-
-            // 4. Valida e Baixa o Estoque
-            if (produto.getQuantidade() < itemDto.getQuantidade()) {
-                throw new RegraNegocioException("Estoque insuficiente para o produto: " + produto.getNome() +
-                        ". Quantidade disponível: " + produto.getQuantidade());
-            }
-            produto.setQuantidade(produto.getQuantidade() - itemDto.getQuantidade());
-            produtoRepository.save(produto); // Salva a baixa no estoque
-
-            // 5. Cria o ItemPedido
-            ItemPedido item = new ItemPedido();
-            item.setProduto(produto);
-            item.setQuantidade(itemDto.getQuantidade());
-            item.setPrecoUnitario(produto.getPreco()); // Pega o preço do banco de dados (segurança)
-            item.setSubTotal(produto.getPreco() * itemDto.getQuantidade());
-            item.setPedido(pedido); // Conecta o item ao pedido
-
-            itens.add(item);
-            valorTotalPedido += item.getSubTotal();
-        }
-
-        pedido.setItens(itens);
-        pedido.setValorTotal(valorTotalPedido);
-
-        // 6. Salva o pedido completo (com os itens juntos por causa do CascadeType.ALL)
-        Pedido pedidoSalvo = pedidoRepository.save(pedido);
-
-        // 7. Converte a Entidade salva para ResponseDTO
-        return converterParaResponseDTO(pedidoSalvo);
+    public PedidoService(PedidoRepository pedidoRepository,
+                         ClienteRepository clienteRepository,
+                         ProdutoRepository produtoRepository) {
+        this.pedidoRepository = pedidoRepository;
+        this.clienteRepository = clienteRepository;
+        this.produtoRepository = produtoRepository;
     }
 
-    // --- NOVO MÉTODO: ATUALIZAR STATUS DO PEDIDO ---
+    /**
+     * Cria o pedido e baixa o estoque na mesma transação: se qualquer item falhar
+     * (produto inexistente, estoque insuficiente), nada é gravado.
+     */
+    @Transactional
+    public PedidoResponseDTO criar(PedidoRequestDTO dto) {
+        Cliente cliente = clienteRepository.findById(dto.clienteId())
+                .orElseThrow(() -> new RecursoNaoEncontradoException("Cliente", dto.clienteId()));
+
+        Pedido pedido = new Pedido(cliente);
+
+        for (ItemPedidoRequestDTO itemDto : dto.itens()) {
+            Produto produto = produtoRepository.findById(itemDto.produtoId())
+                    .orElseThrow(() -> new RecursoNaoEncontradoException("Produto", itemDto.produtoId()));
+
+            produto.baixarEstoque(itemDto.quantidade());
+            pedido.adicionarItem(new ItemPedido(produto, itemDto.quantidade()));
+        }
+
+        return PedidoResponseDTO.de(pedidoRepository.save(pedido));
+    }
+
+    public PedidoResponseDTO buscarPorId(Long id) {
+        return PedidoResponseDTO.de(buscarEntidade(id));
+    }
+
+    public Page<PedidoResponseDTO> listar(StatusPedido status, Pageable pageable) {
+        Page<Pedido> pedidos = (status == null)
+                ? pedidoRepository.findAll(pageable)
+                : pedidoRepository.findByStatusPedido(status, pageable);
+        return pedidos.map(PedidoResponseDTO::de);
+    }
+
+    /** Muda o status respeitando o ciclo de vida; cancelar devolve os itens ao estoque. */
     @Transactional
     public PedidoResponseDTO atualizarStatus(Long id, StatusPedido novoStatus) {
-        // Busca o pedido no banco
-        Pedido pedido = pedidoRepository.findById(id)
+        Pedido pedido = buscarEntidade(id);
+        pedido.alterarStatus(novoStatus);
+        return PedidoResponseDTO.de(pedido);
+    }
+
+    private Pedido buscarEntidade(Long id) {
+        return pedidoRepository.findById(id)
                 .orElseThrow(() -> new RecursoNaoEncontradoException("Pedido", id));
-
-        // Regra de Negócio Exemplo: Não pode enviar um pedido que foi cancelado
-        if (pedido.getStatusPedido() == StatusPedido.CANCELADO && novoStatus != StatusPedido.CANCELADO) {
-            throw new RegraNegocioException("Não é possível alterar o status de um pedido que já foi CANCELADO.");
-        }
-
-        // Atualiza o status
-        pedido.setStatusPedido(novoStatus);
-
-        // Salva a alteração
-        Pedido pedidoAtualizado = pedidoRepository.save(pedido);
-
-        // Retorna o DTO atualizado
-        return converterParaResponseDTO(pedidoAtualizado);
     }
-
-    // Método auxiliar para evitar repetição de código
-    private PedidoResponseDTO converterParaResponseDTO(Pedido pedido) {
-        List<ItemPedidoResponseDTO> itensDTO = new ArrayList<>();
-
-        for (ItemPedido item : pedido.getItens()) {
-            itensDTO.add(new ItemPedidoResponseDTO(
-                    item.getProduto().getNome(),
-                    item.getQuantidade(),
-                    item.getPrecoUnitario(),
-                    item.getSubTotal()
-            ));
-        }
-
-        return new PedidoResponseDTO(
-                        pedido.getId(),
-                        pedido.getCliente().getNome(),
-                        pedido.getValorTotal(),
-                itensDTO, // Converte o Enum para String no JSON
-                pedido.getStatusPedido().name()
-                );
-    }
-
-    // NOVO MÉTODO: BUSCAR POR STATUS
-    public List<PedidoResponseDTO>buscarPorStatus(StatusPedido status) {
-        // Busca a lista de pedidos no banco de dados filtrando pelo Enum
-        List<Pedido> pedidos = pedidoRepository.findByStatusPedido(status);
-        // Cria uma lista vazia de DTOs
-        List<PedidoResponseDTO> responseList = new ArrayList<>();
-        // Converte cada Pedido encontrado para um ResponseDTO
-        for (Pedido pedido : pedidos) {
-            responseList.add(converterParaResponseDTO(pedido));
-        }
-        return responseList;
-    }
-
-
 }
