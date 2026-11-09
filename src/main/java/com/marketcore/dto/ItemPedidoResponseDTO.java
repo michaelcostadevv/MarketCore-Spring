@@ -5,17 +5,15 @@ public class ItemPedidoResponseDTO {
     private String nomeProduto;
     private Integer quantidade;
     private Double precoUnitario;
-
-    // Opcional, mas muito útil para o frontend:
     private Double subTotal;
 
-    public ItemPedidoResponseDTO(String nome, Integer quantidade, Double precoUnitario, Double subTotal) {}
+    public ItemPedidoResponseDTO() {}
 
-    public ItemPedidoResponseDTO(String nomeProduto, Integer quantidade, Double precoUnitario) {
+    public ItemPedidoResponseDTO(String nomeProduto, Integer quantidade, Double precoUnitario, Double subTotal) {
         this.nomeProduto = nomeProduto;
         this.quantidade = quantidade;
         this.precoUnitario = precoUnitario;
-        this.subTotal = quantidade * precoUnitario;
+        this.subTotal = subTotal;
     }
 
     public String getNomeProduto() { return nomeProduto; }
