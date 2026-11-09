@@ -2,23 +2,15 @@ package com.marketcore.security;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.security.authentication.AuthenticationProvider;
-import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
-import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
+/**
+ * O Spring Security monta o provedor de autenticação automaticamente a partir
+ * do único UserDetailsService (UserDetailsServiceImpl) e deste PasswordEncoder.
+ */
 @Configuration
 public class ApplicationConfig {
-
-    /** Usa o UserDetailsServiceImpl (único UserDetailsService da aplicação). */
-    @Bean
-    public AuthenticationProvider authenticationProvider(UserDetailsService userDetailsService,
-                                                         PasswordEncoder passwordEncoder) {
-        DaoAuthenticationProvider authProvider = new DaoAuthenticationProvider(userDetailsService);
-        authProvider.setPasswordEncoder(passwordEncoder);
-        return authProvider;
-    }
 
     @Bean
     public PasswordEncoder passwordEncoder() {
