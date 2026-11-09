@@ -1,7 +1,7 @@
 package com.marketcore.service;
 
 import com.marketcore.entity.Cliente;
-import com.marketcore.exception.ClienteNaoEncontradoException;
+import com.marketcore.exception.RecursoNaoEncontradoException;
 import com.marketcore.repository.ClienteRepository;
 import org.springframework.stereotype.Service;
 
@@ -24,7 +24,7 @@ public class ClienteService {
     public Cliente buscarClientePorId(Long id) {
         return clienteRepository.findById(id)
                 .orElseThrow(() ->
-                        new ClienteNaoEncontradoException("Cliente não encontrado: " + id)
+                        new RecursoNaoEncontradoException("Cliente", id)
                 );
     }
 

@@ -1,7 +1,7 @@
 package com.marketcore.service;
 
 import com.marketcore.entity.Produto;
-import com.marketcore.exception.ProdutoNaoEncontradoException;
+import com.marketcore.exception.RecursoNaoEncontradoException;
 import com.marketcore.repository.ProdutoRepository;
 import org.springframework.stereotype.Service;
 
@@ -23,7 +23,7 @@ public class ProdutoService {
     public Produto buscarProdutoPorId(Long id) {
         return produtoRepository.findById(id)
                 .orElseThrow(()
-                        -> new ProdutoNaoEncontradoException("Produto nao encontrado"+ id)
+                        -> new RecursoNaoEncontradoException("Produto", id)
                 );
     }
 

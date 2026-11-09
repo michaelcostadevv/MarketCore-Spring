@@ -9,7 +9,8 @@ import com.marketcore.entity.ItemPedido;
 import com.marketcore.entity.Pedido;
 import com.marketcore.entity.Produto;
 import com.marketcore.enums.StatusPedido;
-import com.marketcore.exception.ResourceNotFoundException;
+import com.marketcore.exception.RecursoNaoEncontradoException;
+import com.marketcore.exception.RegraNegocioException;
 import com.marketcore.repository.ClienteRepository;
 import com.marketcore.repository.PedidoRepository;
 import com.marketcore.repository.ProdutoRepository;
@@ -37,7 +38,7 @@ public class PedidoService {
 
         // 1. Busca o cliente real no banco de dados
         Cliente cliente = clienteRepository.findById(requestDTO.getClienteId())
-                .orElseThrow(() -> new RuntimeException("Cliente não encontrado com ID: " + requestDTO.getClienteId()));
+                .orElseThrow(() -> new RecursoNaoEncontradoException("Cliente", requestDTO.getClienteId()));
 
         // 2. Prepara o Pedido
         Pedido pedido = new Pedido();
@@ -52,11 +53,11 @@ public class PedidoService {
 
             // Busca o produto real
             Produto produto = produtoRepository.findById(itemDto.getProdutoId())
-                    .orElseThrow(() -> new RuntimeException("Produto não encontrado com ID: " + itemDto.getProdutoId()));
+                    .orElseThrow(() -> new RecursoNaoEncontradoException("Produto", itemDto.getProdutoId()));
 
             // 4. Valida e Baixa o Estoque
             if (produto.getQuantidade() < itemDto.getQuantidade()) {
-                throw new RuntimeException("Estoque insuficiente para o produto: " + produto.getNome() +
+                throw new RegraNegocioException("Estoque insuficiente para o produto: " + produto.getNome() +
                         ". Quantidade disponível: " + produto.getQuantidade());
             }
             produto.setQuantidade(produto.getQuantidade() - itemDto.getQuantidade());
@@ -89,11 +90,11 @@ public class PedidoService {
     public PedidoResponseDTO atualizarStatus(Long id, StatusPedido novoStatus) {
         // Busca o pedido no banco
         Pedido pedido = pedidoRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Pedido não encontrado com o ID: " + id));
+                .orElseThrow(() -> new RecursoNaoEncontradoException("Pedido", id));
 
         // Regra de Negócio Exemplo: Não pode enviar um pedido que foi cancelado
         if (pedido.getStatusPedido() == StatusPedido.CANCELADO && novoStatus != StatusPedido.CANCELADO) {
-            throw new RuntimeException("Não é possível alterar o status de um pedido que já foi CANCELADO.");
+            throw new RegraNegocioException("Não é possível alterar o status de um pedido que já foi CANCELADO.");
         }
 
         // Atualiza o status
