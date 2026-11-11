@@ -49,6 +49,8 @@ public class SecurityConfig {
                         // A ORDEM IMPORTA: vale a primeira regra que casar com a requisição.
                         .requestMatchers(HttpMethod.GET, "/produtos/**").permitAll()
                         .requestMatchers("/produtos/**").hasRole("ADMIN")
+                        // Cadastro de clientes é administrativo; o cliente vê os próprios dados em /auth/me
+                        .requestMatchers("/clientes/**").hasRole("ADMIN")
                         .anyRequest().authenticated()
                 )
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
