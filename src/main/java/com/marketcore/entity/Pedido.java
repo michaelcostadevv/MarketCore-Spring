@@ -5,7 +5,7 @@ import com.marketcore.exception.RegraNegocioException;
 import jakarta.persistence.*;
 
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -25,8 +25,11 @@ public class Pedido {
     @Column(name = "status_pedido", nullable = false)
     private StatusPedido statusPedido = StatusPedido.PENDENTE;
 
+    // Instant = um momento absoluto na linha do tempo, sem depender do fuso do servidor.
+    // (LocalDateTime.now() gravava a hora do relógio da máquina: em UTC no Docker, em
+    // horário de Brasília na IDE, e o JSON saía sem fuso, então o front não tinha como acertar.)
     @Column(name = "data_pedido", nullable = false)
-    private LocalDateTime dataPedido = LocalDateTime.now();
+    private Instant dataPedido = Instant.now();
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "cliente_id", nullable = false)
@@ -62,7 +65,7 @@ public class Pedido {
 
     public Long getId() { return id; }
     public BigDecimal getValorTotal() { return valorTotal; }
-    public LocalDateTime getDataPedido() { return dataPedido; }
+    public Instant getDataPedido() { return dataPedido; }
     public Cliente getCliente() { return cliente; }
     public List<ItemPedido> getItens() { return Collections.unmodifiableList(itens); }
     public StatusPedido getStatusPedido() { return statusPedido; }
