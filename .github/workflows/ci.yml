@@ -1,0 +1,36 @@
+# Integracao Continua (CI): compila e roda todos os testes a cada push na main
+# e a cada pull request, para que nenhum codigo quebrado chegue na main.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# Se chegar um push novo no mesmo PR, cancela a execucao antiga (economiza tempo).
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build e testes
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Baixar o codigo
+        uses: actions/checkout@v4
+
+      - name: Instalar Java 21 (Temurin) com cache do Maven
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+
+      - name: Compilar e rodar os testes
+        run: ./mvnw -B verify

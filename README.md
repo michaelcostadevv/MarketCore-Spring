@@ -1,5 +1,7 @@
 # 🛒 MarketCore API
 
+[![CI](https://github.com/michaelcostadevv/MarketCore-Spring/actions/workflows/ci.yml/badge.svg)](https://github.com/michaelcostadevv/MarketCore-Spring/actions/workflows/ci.yml)
+
 Uma API RESTful para gestão de e-commerce, construída com Java e Spring Boot. O projeto simula um ambiente real de vendas, com gerenciamento de estoque, cálculo de pedidos, autenticação JWT e arquitetura conteinerizada.
 
 ## 🚀 Tecnologias Utilizadas
