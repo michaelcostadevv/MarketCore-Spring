@@ -2,6 +2,7 @@ package com.marketcore.security;
 
 import com.marketcore.entity.User;
 import com.marketcore.repository.UserRepository;
+import com.marketcore.service.AuthService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -43,7 +44,7 @@ public class AdminInicializador implements ApplicationRunner {
         User admin = new User();
         admin.setEmail(email);
         admin.setPassword(passwordEncoder.encode(senha));
-        admin.setRole("ROLE_ADMIN");
+        admin.setRole(AuthService.ROLE_ADMIN);
         userRepository.save(admin);
         log.info("Administrador inicial criado: {}", email);
     }

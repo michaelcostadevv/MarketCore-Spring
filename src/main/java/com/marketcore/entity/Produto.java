@@ -22,6 +22,14 @@ public class Produto {
     @Column(nullable = false, precision = 12, scale = 2)
     private BigDecimal preco;
 
+    /** Opcional: produtos cadastrados antes desta versão não têm descrição. */
+    @Column(length = 1000)
+    private String descricao;
+
+    /** Opcional: URL pública da imagem exibida na vitrine. */
+    @Column(name = "imagem_url", length = 500)
+    private String imagemUrl;
+
     /**
      * Lock otimista: se dois pedidos alterarem o estoque do mesmo produto ao mesmo tempo,
      * o segundo falha (409) em vez de sobrescrever o primeiro e vender além do estoque.
@@ -60,6 +68,12 @@ public class Produto {
 
     public Integer getQuantidade() { return quantidade; }
     public void setQuantidade(Integer quantidade) { this.quantidade = quantidade; }
+
+    public String getDescricao() { return descricao; }
+    public void setDescricao(String descricao) { this.descricao = descricao; }
+
+    public String getImagemUrl() { return imagemUrl; }
+    public void setImagemUrl(String imagemUrl) { this.imagemUrl = imagemUrl; }
 
     public long getVersion() { return version; }
 }

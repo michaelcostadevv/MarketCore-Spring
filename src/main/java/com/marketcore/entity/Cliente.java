@@ -16,11 +16,26 @@ public class Cliente {
     @Column(nullable = false, unique = true)
     private String email;
 
+    /**
+     * Conta de login dona deste cliente (relação 1:1).
+     * - A chave estrangeira fica aqui: o cliente pertence a um usuário; User não precisa conhecer Cliente.
+     * - unique = true garante o 1:1 no próprio banco, não só no código.
+     * - nullable: clientes cadastrados antes desta versão não têm usuário.
+     */
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "usuario_id", unique = true)
+    private User usuario;
+
     public Cliente() {}
 
     public Cliente(String nome, String email) {
         this.nome = nome;
         this.email = email;
+    }
+
+    public Cliente(String nome, String email, User usuario) {
+        this(nome, email);
+        this.usuario = usuario;
     }
 
     public Long getId() { return id; }
@@ -31,6 +46,8 @@ public class Cliente {
 
     public String getEmail() { return email; }
     public void setEmail(String email) { this.email = email; }
+
+    public User getUsuario() { return usuario; }
 
     @Override
     public String toString() {

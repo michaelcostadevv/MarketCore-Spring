@@ -52,16 +52,23 @@ class ApiIntegrationTest {
 
     @Test
     void rotaProtegidaSemTokenRetorna401NoFormatoPadrao() throws Exception {
-        mvc.perform(get("/produtos"))
+        mvc.perform(get("/pedidos"))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.status").value(401))
-                .andExpect(jsonPath("$.caminho").value("/produtos"));
+                .andExpect(jsonPath("$.caminho").value("/pedidos"));
     }
 
     @Test
     void tokenInvalidoRetorna401EmVezDe500() throws Exception {
-        mvc.perform(get("/produtos").header("Authorization", "Bearer token.invalido.xyz"))
+        mvc.perform(get("/pedidos").header("Authorization", "Bearer token.invalido.xyz"))
                 .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void tokenInvalidoNaoQuebraRotaPublica() throws Exception {
+        // Um token vencido guardado no navegador não pode impedir o visitante de ver a vitrine
+        mvc.perform(get("/produtos").header("Authorization", "Bearer token.vencido.xyz"))
+                .andExpect(status().isOk());
     }
 
     @Test
@@ -76,7 +83,7 @@ class ApiIntegrationTest {
     void cadastroIgnoraRoleEnviadaPeloCliente() throws Exception {
         String email = emailUnico();
         String token = JsonPath.read(mvc.perform(post("/auth/register").contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"email\":\"" + email + "\",\"password\":\"senhaForte123\",\"role\":\"ROLE_ADMIN\"}"))
+                        .content("{\"nome\":\"Hacker\",\"email\":\"" + email + "\",\"password\":\"senhaForte123\",\"role\":\"ROLE_ADMIN\"}"))
                 .andExpect(status().isCreated())
                 .andReturn().getResponse().getContentAsString(), "$.token");
 
@@ -91,8 +98,48 @@ class ApiIntegrationTest {
         registrar(email, "senhaForte123");
 
         mvc.perform(post("/auth/register").contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"email\":\"" + email + "\",\"password\":\"senhaForte123\"}"))
+                        .content("{\"nome\":\"Repetido\",\"email\":\"" + email + "\",\"password\":\"senhaForte123\"}"))
                 .andExpect(status().isConflict());
+    }
+
+    @Test
+    void cadastroCriaClienteLigadoAoUsuarioVisivelNoAuthMe() throws Exception {
+        String email = emailUnico();
+        String token = JsonPath.read(mvc.perform(post("/auth/register").contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"nome\":\"Michael\",\"email\":\"" + email + "\",\"password\":\"senhaForte123\"}"))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString(), "$.token");
+
+        mvc.perform(autenticado(get("/auth/me"), token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.email").value(email))
+                .andExpect(jsonPath("$.nome").value("Michael"))
+                .andExpect(jsonPath("$.role").value("ROLE_USER"))
+                .andExpect(jsonPath("$.admin").value(false))
+                .andExpect(jsonPath("$.clienteId").isNumber());
+    }
+
+    @Test
+    void authMeDoAdminIndicaAdminSemCadastroDeCliente() throws Exception {
+        mvc.perform(autenticado(get("/auth/me"), tokenAdmin))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.admin").value(true))
+                .andExpect(jsonPath("$.clienteId").doesNotExist());
+    }
+
+    @Test
+    void authMeSemTokenRetorna401() throws Exception {
+        // Prova que a regra específica "/auth/me" venceu a regra pública "/auth/**"
+        mvc.perform(get("/auth/me"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void cadastroSemNomeRetorna400() throws Exception {
+        mvc.perform(post("/auth/register").contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"email\":\"" + emailUnico() + "\",\"password\":\"senhaForte123\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.detalhes[0]", containsString("nome")));
     }
 
     // ---------- Produtos e clientes ----------
@@ -133,6 +180,56 @@ class ApiIntegrationTest {
     }
 
     @Test
+    void visitanteSemLoginVeAVitrineEODetalhe() throws Exception {
+        long id = criarProduto("Caneca", 10, "29.90");
+
+        mvc.perform(get("/produtos"))
+                .andExpect(status().isOk());
+        mvc.perform(get("/produtos/" + id))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.nome").value("Caneca"));
+    }
+
+    @Test
+    void visitanteNaoPodeAlterarOCatalogo() throws Exception {
+        mvc.perform(post("/produtos").contentType(MediaType.APPLICATION_JSON).content(produtoJson("X", 1, "1.00")))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void buscaPorNomeIgnoraMaiusculasEFiltraParteDoNome() throws Exception {
+        String marca = "Zyx" + UUID.randomUUID().toString().substring(0, 6); // nome único neste teste
+        criarProduto("Teclado " + marca, 5, "150.00");
+        criarProduto("Mouse " + marca, 5, "80.00");
+        criarProduto("Monitor qualquer", 5, "900.00");
+
+        mvc.perform(get("/produtos").param("nome", marca.toLowerCase()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content", hasSize(2)))
+                .andExpect(jsonPath("$.content[*].nome", everyItem(containsString(marca))));
+    }
+
+    @Test
+    void produtoComDescricaoEImagemAparecemNaResposta() throws Exception {
+        String body = "{\"nome\":\"Fone\",\"quantidade\":3,\"preco\":199.90,"
+                + "\"descricao\":\"Fone sem fio\",\"imagemUrl\":\"https://cdn.exemplo.com/fone.jpg\"}";
+
+        mvc.perform(autenticado(post("/produtos"), tokenAdmin).content(body))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.descricao").value("Fone sem fio"))
+                .andExpect(jsonPath("$.imagemUrl").value("https://cdn.exemplo.com/fone.jpg"));
+    }
+
+    @Test
+    void imagemComUrlPerigosaERecusada() throws Exception {
+        String body = "{\"nome\":\"Fone\",\"quantidade\":3,\"preco\":199.90,\"imagemUrl\":\"javascript:alert(1)\"}";
+
+        mvc.perform(autenticado(post("/produtos"), tokenAdmin).content(body))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.detalhes[0]", containsString("imagemUrl")));
+    }
+
+    @Test
     void listagemDeProdutosEPaginada() throws Exception {
         criarProduto("Cabo", 10, "9.90");
 
@@ -147,69 +244,150 @@ class ApiIntegrationTest {
         String email = emailUnico();
         criarCliente("Bia", email);
 
-        mvc.perform(autenticado(post("/clientes"), tokenUsuario)
+        mvc.perform(autenticado(post("/clientes"), tokenAdmin)
                         .content("{\"nome\":\"Outra\",\"email\":\"" + email + "\"}"))
                 .andExpect(status().isConflict());
+    }
+
+    @Test
+    void usuarioComumNaoAcessaCadastroDeClientes() throws Exception {
+        mvc.perform(autenticado(get("/clientes"), tokenUsuario))
+                .andExpect(status().isForbidden());
     }
 
     // ---------- Pedidos ----------
 
     @Test
-    void criarPedidoRetornaItensPreenchidosEBaixaEstoque() throws Exception {
-        long clienteId = criarCliente("Carlos", emailUnico());
+    void criarPedidoUsaOClienteDoUsuarioLogado() throws Exception {
         long produtoId = criarProduto("Headset", 10, "250.00");
 
-        mvc.perform(autenticado(post("/pedidos"), tokenUsuario).content(pedidoJson(clienteId, produtoId, 3)))
+        mvc.perform(autenticado(post("/pedidos"), tokenUsuario).content(pedidoJson(produtoId, 3)))
                 .andExpect(status().isCreated())
                 .andExpect(header().string("Location", containsString("/pedidos/")))
+                .andExpect(jsonPath("$.nomeCliente").value("Usuário Teste"))
                 .andExpect(jsonPath("$.statusPedido").value("PENDENTE"))
                 .andExpect(jsonPath("$.valorTotal").value(750.00))
                 .andExpect(jsonPath("$.itens[0].nomeProduto").value("Headset"))
-                .andExpect(jsonPath("$.itens[0].quantidade").value(3))
                 .andExpect(jsonPath("$.itens[0].subTotal").value(750.00));
 
-        mvc.perform(autenticado(get("/produtos/" + produtoId), tokenUsuario))
+        mvc.perform(get("/produtos/" + produtoId))
                 .andExpect(jsonPath("$.quantidade").value(7));
     }
 
     @Test
+    void clienteIdEnviadoNoCorpoEIgnorado() throws Exception {
+        // Tentativa de comprar em nome de outra pessoa: o campo extra é descartado e vale o dono do token
+        String tokenOutro = registrar(emailUnico(), "senhaForte123");
+        long produtoId = criarProduto("Cabo HDMI", 10, "30.00");
+        long idOutroCliente = clienteIdDe(tokenOutro);
+
+        String corpo = "{\"clienteId\":" + idOutroCliente + ",\"itens\":[{\"produtoId\":" + produtoId + ",\"quantidade\":1}]}";
+        mvc.perform(autenticado(post("/pedidos"), tokenUsuario).content(corpo))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.clienteId").value(clienteIdDe(tokenUsuario)));
+    }
+
+    @Test
+    void adminSemCadastroDeClienteNaoFazPedido() throws Exception {
+        long produtoId = criarProduto("Mousepad", 10, "25.00");
+
+        mvc.perform(autenticado(post("/pedidos"), tokenAdmin).content(pedidoJson(produtoId, 1)))
+                .andExpect(status().isUnprocessableContent());
+    }
+
+    @Test
     void pedidoAlemDoEstoqueRetorna422ENaoAlteraEstoque() throws Exception {
-        long clienteId = criarCliente("Duda", emailUnico());
         long produtoId = criarProduto("Webcam", 2, "150.00");
 
-        mvc.perform(autenticado(post("/pedidos"), tokenUsuario).content(pedidoJson(clienteId, produtoId, 5)))
+        mvc.perform(autenticado(post("/pedidos"), tokenUsuario).content(pedidoJson(produtoId, 5)))
                 .andExpect(status().isUnprocessableContent())
                 .andExpect(jsonPath("$.mensagem", containsString("Estoque insuficiente")));
 
-        mvc.perform(autenticado(get("/produtos/" + produtoId), tokenUsuario))
+        mvc.perform(get("/produtos/" + produtoId))
                 .andExpect(jsonPath("$.quantidade").value(2));
     }
 
     @Test
     void pedidoSemItensRetorna400() throws Exception {
-        long clienteId = criarCliente("Eva", emailUnico());
-
-        mvc.perform(autenticado(post("/pedidos"), tokenUsuario)
-                        .content("{\"clienteId\":" + clienteId + ",\"itens\":[]}"))
+        mvc.perform(autenticado(post("/pedidos"), tokenUsuario).content("{\"itens\":[]}"))
                 .andExpect(status().isBadRequest());
     }
 
+    // ---------- Autorização por objeto (IDOR / BOLA) ----------
+
     @Test
-    void cancelarPedidoDevolveEstoqueETransicaoInvalidaRetorna422() throws Exception {
-        long clienteId = criarCliente("Fabio", emailUnico());
+    void usuarioNaoVePedidoDeOutraPessoaE404() throws Exception {
+        long produtoId = criarProduto("Pendrive", 10, "39.90");
+        long pedidoDaAna = criarPedido(tokenUsuario, produtoId, 1);
+        String tokenBruno = registrar(emailUnico(), "senhaForte123");
+
+        // 404 e não 403: o Bruno não pode nem descobrir que o pedido existe
+        mvc.perform(autenticado(get("/pedidos/" + pedidoDaAna), tokenBruno))
+                .andExpect(status().isNotFound());
+
+        mvc.perform(autenticado(patch("/pedidos/" + pedidoDaAna + "/status"), tokenBruno)
+                        .content("{\"status\":\"CANCELADO\"}"))
+                .andExpect(status().isNotFound());
+
+        // A dona continua enxergando normalmente
+        mvc.perform(autenticado(get("/pedidos/" + pedidoDaAna), tokenUsuario))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void listagemDoClienteMostraSoOsPropriosPedidos() throws Exception {
+        long produtoId = criarProduto("Adaptador", 20, "15.00");
+        criarPedido(tokenUsuario, produtoId, 1);
+        String tokenBruno = registrar(emailUnico(), "senhaForte123");
+        long pedidoDoBruno = criarPedido(tokenBruno, produtoId, 2);
+
+        mvc.perform(autenticado(get("/pedidos"), tokenBruno))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content", hasSize(1)))
+                .andExpect(jsonPath("$.content[0].id").value(pedidoDoBruno));
+    }
+
+    @Test
+    void adminVeTodosOsPedidos() throws Exception {
+        long produtoId = criarProduto("Suporte", 20, "45.00");
+        long pedidoA = criarPedido(tokenUsuario, produtoId, 1);
+        long pedidoB = criarPedido(registrar(emailUnico(), "senhaForte123"), produtoId, 1);
+
+        mvc.perform(autenticado(get("/pedidos?size=100"), tokenAdmin))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content[*].id", hasItems((int) pedidoA, (int) pedidoB)));
+    }
+
+    @Test
+    void clienteSoPodeCancelarEAdminConduzOFluxo() throws Exception {
         long produtoId = criarProduto("SSD", 5, "399.00");
-        long pedidoId = criarPedido(clienteId, produtoId, 2);
+        long pedidoId = criarPedido(tokenUsuario, produtoId, 2);
 
-        // PENDENTE -> ENTREGUE não é permitido
-        mvc.perform(autenticado(patch("/pedidos/" + pedidoId + "/status"), tokenUsuario).content("{\"status\":\"ENTREGUE\"}"))
-                .andExpect(status().isUnprocessableContent());
+        // Cliente não pode marcar o próprio pedido como pago: 403
+        mvc.perform(autenticado(patch("/pedidos/" + pedidoId + "/status"), tokenUsuario).content("{\"status\":\"PAGO\"}"))
+                .andExpect(status().isForbidden());
 
+        // Admin pode
+        mvc.perform(autenticado(patch("/pedidos/" + pedidoId + "/status"), tokenAdmin).content("{\"status\":\"PAGO\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.statusPedido").value("PAGO"));
+
+        // Cliente cancela o próprio pedido e o estoque volta
         mvc.perform(autenticado(patch("/pedidos/" + pedidoId + "/status"), tokenUsuario).content("{\"status\":\"CANCELADO\"}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.statusPedido").value("CANCELADO"));
 
-        mvc.perform(autenticado(get("/produtos/" + produtoId), tokenUsuario))
+        mvc.perform(get("/produtos/" + produtoId))
                 .andExpect(jsonPath("$.quantidade").value(5));
+    }
+
+    @Test
+    void transicaoInvalidaRetorna422() throws Exception {
+        long produtoId = criarProduto("HD", 5, "299.00");
+        long pedidoId = criarPedido(tokenUsuario, produtoId, 1);
+
+        mvc.perform(autenticado(patch("/pedidos/" + pedidoId + "/status"), tokenAdmin).content("{\"status\":\"ENTREGUE\"}"))
+                .andExpect(status().isUnprocessableContent());
     }
 
     @Test
@@ -220,9 +398,8 @@ class ApiIntegrationTest {
 
     @Test
     void listarPedidosPorStatus() throws Exception {
-        long clienteId = criarCliente("Gil", emailUnico());
-        long produtoId = criarProduto("Pendrive", 10, "39.90");
-        criarPedido(clienteId, produtoId, 1);
+        long produtoId = criarProduto("Lanterna", 10, "39.90");
+        criarPedido(tokenUsuario, produtoId, 1);
 
         mvc.perform(autenticado(get("/pedidos?status=PENDENTE"), tokenUsuario))
                 .andExpect(status().isOk())
@@ -232,9 +409,8 @@ class ApiIntegrationTest {
 
     @Test
     void excluirProdutoQueEstaEmPedidoRetorna409() throws Exception {
-        long clienteId = criarCliente("Hugo", emailUnico());
         long produtoId = criarProduto("Hub USB", 10, "79.90");
-        criarPedido(clienteId, produtoId, 1);
+        criarPedido(tokenUsuario, produtoId, 1);
 
         mvc.perform(autenticado(delete("/produtos/" + produtoId), tokenAdmin))
                 .andExpect(status().isConflict());
@@ -256,10 +432,17 @@ class ApiIntegrationTest {
 
     private String registrar(String email, String senha) throws Exception {
         String body = mvc.perform(post("/auth/register").contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"email\":\"" + email + "\",\"password\":\"" + senha + "\"}"))
+                        .content("{\"nome\":\"Usuário Teste\",\"email\":\"" + email + "\",\"password\":\"" + senha + "\"}"))
                 .andExpect(status().isCreated())
                 .andReturn().getResponse().getContentAsString();
         return JsonPath.read(body, "$.token");
+    }
+
+    private long clienteIdDe(String token) throws Exception {
+        String body = mvc.perform(autenticado(get("/auth/me"), token))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        return ((Number) JsonPath.read(body, "$.clienteId")).longValue();
     }
 
     private long criarProduto(String nome, int qtd, String preco) throws Exception {
@@ -270,15 +453,15 @@ class ApiIntegrationTest {
     }
 
     private long criarCliente(String nome, String email) throws Exception {
-        String body = mvc.perform(autenticado(post("/clientes"), tokenUsuario)
+        String body = mvc.perform(autenticado(post("/clientes"), tokenAdmin)
                         .content("{\"nome\":\"" + nome + "\",\"email\":\"" + email + "\"}"))
                 .andExpect(status().isCreated())
                 .andReturn().getResponse().getContentAsString();
         return ((Number) JsonPath.read(body, "$.id")).longValue();
     }
 
-    private long criarPedido(long clienteId, long produtoId, int qtd) throws Exception {
-        String body = mvc.perform(autenticado(post("/pedidos"), tokenUsuario).content(pedidoJson(clienteId, produtoId, qtd)))
+    private long criarPedido(String token, long produtoId, int qtd) throws Exception {
+        String body = mvc.perform(autenticado(post("/pedidos"), token).content(pedidoJson(produtoId, qtd)))
                 .andExpect(status().isCreated())
                 .andReturn().getResponse().getContentAsString();
         return ((Number) JsonPath.read(body, "$.id")).longValue();
@@ -288,8 +471,8 @@ class ApiIntegrationTest {
         return "{\"nome\":\"" + nome + "\",\"quantidade\":" + qtd + ",\"preco\":" + preco + "}";
     }
 
-    private static String pedidoJson(long clienteId, long produtoId, int qtd) {
-        return "{\"clienteId\":" + clienteId + ",\"itens\":[{\"produtoId\":" + produtoId + ",\"quantidade\":" + qtd + "}]}";
+    private static String pedidoJson(long produtoId, int qtd) {
+        return "{\"itens\":[{\"produtoId\":" + produtoId + ",\"quantidade\":" + qtd + "}]}";
     }
 
     private static String emailUnico() {

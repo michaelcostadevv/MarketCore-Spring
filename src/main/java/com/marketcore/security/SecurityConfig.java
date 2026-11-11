@@ -5,6 +5,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
@@ -30,8 +31,13 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
+                // Usa o CorsConfigurationSource do CorsConfig. Precisa ficar aqui, e não só no Spring MVC,
+                // porque o preflight OPTIONS não leva token e seria barrado com 401 pelo filtro de segurança.
+                .cors(Customizer.withDefaults())
                 .csrf(AbstractHttpConfigurer::disable) // API stateless com JWT: não usa cookies de sessão
                 .authorizeHttpRequests(auth -> auth
+                        // Mais específica primeiro: /auth/me exige login, embora o resto de /auth/** seja público
+                        .requestMatchers("/auth/me").authenticated()
                         .requestMatchers(
                                 "/auth/**",
                                 "/v3/api-docs/**",
@@ -39,9 +45,12 @@ public class SecurityConfig {
                                 "/swagger-ui.html",
                                 "/error"
                         ).permitAll()
-                        // Catálogo de produtos: qualquer usuário logado consulta, só ADMIN altera
-                        .requestMatchers(HttpMethod.GET, "/produtos/**").authenticated()
+                        // Catálogo: qualquer visitante vê a vitrine; só ADMIN altera.
+                        // A ORDEM IMPORTA: vale a primeira regra que casar com a requisição.
+                        .requestMatchers(HttpMethod.GET, "/produtos/**").permitAll()
                         .requestMatchers("/produtos/**").hasRole("ADMIN")
+                        // Cadastro de clientes é administrativo; o cliente vê os próprios dados em /auth/me
+                        .requestMatchers("/clientes/**").hasRole("ADMIN")
                         .anyRequest().authenticated()
                 )
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))

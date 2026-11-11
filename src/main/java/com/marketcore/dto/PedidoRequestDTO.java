@@ -7,10 +7,11 @@ import jakarta.validation.constraints.Size;
 
 import java.util.List;
 
+/**
+ * Não existe "clienteId" aqui de propósito: o dono do pedido vem do TOKEN (usuário logado).
+ * Se viesse do corpo, qualquer usuário poderia fazer pedidos em nome de outro.
+ */
 public record PedidoRequestDTO(
-        @NotNull(message = "O ID do cliente é obrigatório")
-        Long clienteId,
-
         @NotEmpty(message = "O pedido deve ter pelo menos um item")
         @Size(max = 100, message = "O pedido pode ter no máximo 100 itens")
         List<@Valid @NotNull ItemPedidoRequestDTO> itens

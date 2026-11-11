@@ -14,7 +14,7 @@ import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import java.net.URI;
 
-/** Leitura liberada para usuários autenticados; escrita restrita a ROLE_ADMIN (ver SecurityConfig). */
+/** Leitura pública (vitrine); escrita restrita a ROLE_ADMIN (ver SecurityConfig). */
 @RestController
 @RequestMapping("/produtos")
 public class ProdutoController {
@@ -33,9 +33,12 @@ public class ProdutoController {
         return ResponseEntity.created(location).body(criado);
     }
 
+    /** Vitrine pública: GET /produtos?nome=teclado&page=0&size=12 */
     @GetMapping
-    public Page<ProdutoResponseDTO> listar(@PageableDefault(size = 20, sort = "id", direction = Sort.Direction.ASC) Pageable pageable) {
-        return produtoService.listar(pageable);
+    public Page<ProdutoResponseDTO> listar(
+            @RequestParam(required = false) String nome,
+            @PageableDefault(size = 20, sort = "id", direction = Sort.Direction.ASC) Pageable pageable) {
+        return produtoService.listar(nome, pageable);
     }
 
     @GetMapping("/{id}")

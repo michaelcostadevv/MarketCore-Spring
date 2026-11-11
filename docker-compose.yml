@@ -12,7 +12,9 @@ services:
     volumes:
       - mysql_data:/var/lib/mysql
     healthcheck:
-      test: ["CMD-SHELL", "mysqladmin ping -h localhost -u root -p$$MYSQL_ROOT_PASSWORD --silent"]
+      # -h 127.0.0.1 força conexão TCP. Com "localhost" o mysqladmin usa o socket local e
+      # aprova o servidor TEMPORÁRIO da inicialização (que não aceita rede), liberando a API cedo demais.
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -P 3306 -u root -p$$MYSQL_ROOT_PASSWORD --silent"]
       interval: 5s
       timeout: 5s
       retries: 20
@@ -21,6 +23,7 @@ services:
   marketcore-api:
     build: .
     container_name: marketcore-api
+    restart: on-failure # segunda camada: se o banco oscilar na subida, tenta de novo
     ports:
       - "8080:8080"
     environment:
@@ -29,6 +32,7 @@ services:
       MARKETCORE_DB_USER: ${MARKETCORE_DB_USER}
       MARKETCORE_DB_PASSWORD: ${MARKETCORE_DB_PASSWORD}
       JWT_SECRET: ${JWT_SECRET}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:5173}
       ADMIN_EMAIL: ${ADMIN_EMAIL:-}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
     depends_on:

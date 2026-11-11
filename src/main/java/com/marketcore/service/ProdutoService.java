@@ -22,7 +22,8 @@ public class ProdutoService {
 
     @Transactional
     public ProdutoResponseDTO cadastrar(ProdutoRequestDTO dto) {
-        Produto produto = new Produto(dto.nome().trim(), dto.quantidade(), dto.preco());
+        Produto produto = new Produto();
+        aplicar(produto, dto);
         return ProdutoResponseDTO.de(produtoRepository.save(produto));
     }
 
@@ -30,17 +31,32 @@ public class ProdutoService {
         return ProdutoResponseDTO.de(buscarEntidade(id));
     }
 
-    public Page<ProdutoResponseDTO> listar(Pageable pageable) {
-        return produtoRepository.findAll(pageable).map(ProdutoResponseDTO::de);
+    /** Lista o catálogo; se {@code nome} vier preenchido, filtra por parte do nome (sem diferenciar maiúsculas). */
+    public Page<ProdutoResponseDTO> listar(String nome, Pageable pageable) {
+        Page<Produto> produtos = (nome == null || nome.isBlank())
+                ? produtoRepository.findAll(pageable)
+                : produtoRepository.findByNomeContainingIgnoreCase(nome.trim(), pageable);
+        return produtos.map(ProdutoResponseDTO::de);
     }
 
     @Transactional
     public ProdutoResponseDTO atualizar(Long id, ProdutoRequestDTO dto) {
         Produto produto = buscarEntidade(id);
-        produto.setNome(dto.nome().trim());
-        produto.setPreco(dto.preco());
-        produto.setQuantidade(dto.quantidade());
+        aplicar(produto, dto);
         return ProdutoResponseDTO.de(produto);
+    }
+
+    /** Copia os dados do DTO para a entidade, num único lugar para cadastro e atualização. */
+    private static void aplicar(Produto produto, ProdutoRequestDTO dto) {
+        produto.setNome(dto.nome().trim());
+        produto.setQuantidade(dto.quantidade());
+        produto.setPreco(dto.preco());
+        produto.setDescricao(vazioParaNull(dto.descricao()));
+        produto.setImagemUrl(vazioParaNull(dto.imagemUrl()));
+    }
+
+    private static String vazioParaNull(String valor) {
+        return (valor == null || valor.isBlank()) ? null : valor.trim();
     }
 
     @Transactional
