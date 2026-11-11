@@ -52,16 +52,23 @@ class ApiIntegrationTest {
 
     @Test
     void rotaProtegidaSemTokenRetorna401NoFormatoPadrao() throws Exception {
-        mvc.perform(get("/produtos"))
+        mvc.perform(get("/pedidos"))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.status").value(401))
-                .andExpect(jsonPath("$.caminho").value("/produtos"));
+                .andExpect(jsonPath("$.caminho").value("/pedidos"));
     }
 
     @Test
     void tokenInvalidoRetorna401EmVezDe500() throws Exception {
-        mvc.perform(get("/produtos").header("Authorization", "Bearer token.invalido.xyz"))
+        mvc.perform(get("/pedidos").header("Authorization", "Bearer token.invalido.xyz"))
                 .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void tokenInvalidoNaoQuebraRotaPublica() throws Exception {
+        // Um token vencido guardado no navegador não pode impedir o visitante de ver a vitrine
+        mvc.perform(get("/produtos").header("Authorization", "Bearer token.vencido.xyz"))
+                .andExpect(status().isOk());
     }
 
     @Test
@@ -130,6 +137,56 @@ class ApiIntegrationTest {
         mvc.perform(autenticado(get("/produtos/" + id), tokenUsuario))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.mensagem").value("Produto não encontrado com o ID: " + id));
+    }
+
+    @Test
+    void visitanteSemLoginVeAVitrineEODetalhe() throws Exception {
+        long id = criarProduto("Caneca", 10, "29.90");
+
+        mvc.perform(get("/produtos"))
+                .andExpect(status().isOk());
+        mvc.perform(get("/produtos/" + id))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.nome").value("Caneca"));
+    }
+
+    @Test
+    void visitanteNaoPodeAlterarOCatalogo() throws Exception {
+        mvc.perform(post("/produtos").contentType(MediaType.APPLICATION_JSON).content(produtoJson("X", 1, "1.00")))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void buscaPorNomeIgnoraMaiusculasEFiltraParteDoNome() throws Exception {
+        String marca = "Zyx" + UUID.randomUUID().toString().substring(0, 6); // nome único neste teste
+        criarProduto("Teclado " + marca, 5, "150.00");
+        criarProduto("Mouse " + marca, 5, "80.00");
+        criarProduto("Monitor qualquer", 5, "900.00");
+
+        mvc.perform(get("/produtos").param("nome", marca.toLowerCase()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content", hasSize(2)))
+                .andExpect(jsonPath("$.content[*].nome", everyItem(containsString(marca))));
+    }
+
+    @Test
+    void produtoComDescricaoEImagemAparecemNaResposta() throws Exception {
+        String body = "{\"nome\":\"Fone\",\"quantidade\":3,\"preco\":199.90,"
+                + "\"descricao\":\"Fone sem fio\",\"imagemUrl\":\"https://cdn.exemplo.com/fone.jpg\"}";
+
+        mvc.perform(autenticado(post("/produtos"), tokenAdmin).content(body))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.descricao").value("Fone sem fio"))
+                .andExpect(jsonPath("$.imagemUrl").value("https://cdn.exemplo.com/fone.jpg"));
+    }
+
+    @Test
+    void imagemComUrlPerigosaERecusada() throws Exception {
+        String body = "{\"nome\":\"Fone\",\"quantidade\":3,\"preco\":199.90,\"imagemUrl\":\"javascript:alert(1)\"}";
+
+        mvc.perform(autenticado(post("/produtos"), tokenAdmin).content(body))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.detalhes[0]", containsString("imagemUrl")));
     }
 
     @Test

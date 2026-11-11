@@ -43,8 +43,9 @@ public class SecurityConfig {
                                 "/swagger-ui.html",
                                 "/error"
                         ).permitAll()
-                        // Catálogo de produtos: qualquer usuário logado consulta, só ADMIN altera
-                        .requestMatchers(HttpMethod.GET, "/produtos/**").authenticated()
+                        // Catálogo: qualquer visitante vê a vitrine; só ADMIN altera.
+                        // A ORDEM IMPORTA: vale a primeira regra que casar com a requisição.
+                        .requestMatchers(HttpMethod.GET, "/produtos/**").permitAll()
                         .requestMatchers("/produtos/**").hasRole("ADMIN")
                         .anyRequest().authenticated()
                 )
