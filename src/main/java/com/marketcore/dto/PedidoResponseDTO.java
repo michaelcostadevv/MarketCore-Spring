@@ -4,7 +4,7 @@ import com.marketcore.entity.Pedido;
 import com.marketcore.enums.StatusPedido;
 
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.List;
 
 public record PedidoResponseDTO(
@@ -13,7 +13,7 @@ public record PedidoResponseDTO(
         String nomeCliente,
         BigDecimal valorTotal,
         StatusPedido statusPedido,
-        LocalDateTime dataPedido,
+        Instant dataPedido, // sai no JSON em UTC, com "Z" (ex.: 2026-11-11T10:45:00Z)
         List<ItemPedidoResponseDTO> itens
 ) {
     public static PedidoResponseDTO de(Pedido p) {

@@ -10,7 +10,12 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.UUID;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.within;
 
 import static org.hamcrest.Matchers.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
@@ -272,6 +277,29 @@ class ApiIntegrationTest {
 
         mvc.perform(get("/produtos/" + produtoId))
                 .andExpect(jsonPath("$.quantidade").value(7));
+    }
+
+    @Test
+    void dataDoPedidoSaiComFusoHorarioExplicitoEmUtc() throws Exception {
+        long produtoId = criarProduto("Relógio", 5, "100.00");
+        Instant antes = Instant.now().truncatedTo(ChronoUnit.SECONDS);
+
+        String body = mvc.perform(autenticado(post("/pedidos"), tokenUsuario).content(pedidoJson(produtoId, 1)))
+                .andExpect(status().isCreated())
+                // Com o "Z" no fim, o navegador sabe que é UTC e converte para o fuso de quem está vendo.
+                // Sem fuso ("2026-11-11T10:45:00"), cada cliente adivinharia o horário de um jeito.
+                .andExpect(jsonPath("$.dataPedido", matchesPattern("\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?Z")))
+                .andReturn().getResponse().getContentAsString();
+
+        Instant dataPedido = Instant.parse(JsonPath.read(body, "$.dataPedido"));
+        assertThat(dataPedido).isBetween(antes, Instant.now().plusSeconds(1));
+
+        // Depois de gravar e ler do banco, continua sendo o mesmo instante
+        long id = ((Number) JsonPath.read(body, "$.id")).longValue();
+        String lido = mvc.perform(autenticado(get("/pedidos/" + id), tokenUsuario))
+                .andReturn().getResponse().getContentAsString();
+        assertThat(Instant.parse(JsonPath.read(lido, "$.dataPedido")))
+                .isCloseTo(dataPedido, within(1, ChronoUnit.MILLIS));
     }
 
     @Test
