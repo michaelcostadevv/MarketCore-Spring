@@ -83,7 +83,7 @@ class ApiIntegrationTest {
     void cadastroIgnoraRoleEnviadaPeloCliente() throws Exception {
         String email = emailUnico();
         String token = JsonPath.read(mvc.perform(post("/auth/register").contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"email\":\"" + email + "\",\"password\":\"senhaForte123\",\"role\":\"ROLE_ADMIN\"}"))
+                        .content("{\"nome\":\"Hacker\",\"email\":\"" + email + "\",\"password\":\"senhaForte123\",\"role\":\"ROLE_ADMIN\"}"))
                 .andExpect(status().isCreated())
                 .andReturn().getResponse().getContentAsString(), "$.token");
 
@@ -98,8 +98,48 @@ class ApiIntegrationTest {
         registrar(email, "senhaForte123");
 
         mvc.perform(post("/auth/register").contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"email\":\"" + email + "\",\"password\":\"senhaForte123\"}"))
+                        .content("{\"nome\":\"Repetido\",\"email\":\"" + email + "\",\"password\":\"senhaForte123\"}"))
                 .andExpect(status().isConflict());
+    }
+
+    @Test
+    void cadastroCriaClienteLigadoAoUsuarioVisivelNoAuthMe() throws Exception {
+        String email = emailUnico();
+        String token = JsonPath.read(mvc.perform(post("/auth/register").contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"nome\":\"Michael\",\"email\":\"" + email + "\",\"password\":\"senhaForte123\"}"))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString(), "$.token");
+
+        mvc.perform(autenticado(get("/auth/me"), token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.email").value(email))
+                .andExpect(jsonPath("$.nome").value("Michael"))
+                .andExpect(jsonPath("$.role").value("ROLE_USER"))
+                .andExpect(jsonPath("$.admin").value(false))
+                .andExpect(jsonPath("$.clienteId").isNumber());
+    }
+
+    @Test
+    void authMeDoAdminIndicaAdminSemCadastroDeCliente() throws Exception {
+        mvc.perform(autenticado(get("/auth/me"), tokenAdmin))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.admin").value(true))
+                .andExpect(jsonPath("$.clienteId").doesNotExist());
+    }
+
+    @Test
+    void authMeSemTokenRetorna401() throws Exception {
+        // Prova que a regra específica "/auth/me" venceu a regra pública "/auth/**"
+        mvc.perform(get("/auth/me"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void cadastroSemNomeRetorna400() throws Exception {
+        mvc.perform(post("/auth/register").contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"email\":\"" + emailUnico() + "\",\"password\":\"senhaForte123\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.detalhes[0]", containsString("nome")));
     }
 
     // ---------- Produtos e clientes ----------
@@ -313,7 +353,7 @@ class ApiIntegrationTest {
 
     private String registrar(String email, String senha) throws Exception {
         String body = mvc.perform(post("/auth/register").contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"email\":\"" + email + "\",\"password\":\"" + senha + "\"}"))
+                        .content("{\"nome\":\"Usuário Teste\",\"email\":\"" + email + "\",\"password\":\"" + senha + "\"}"))
                 .andExpect(status().isCreated())
                 .andReturn().getResponse().getContentAsString();
         return JsonPath.read(body, "$.token");

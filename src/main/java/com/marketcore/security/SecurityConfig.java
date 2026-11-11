@@ -36,6 +36,8 @@ public class SecurityConfig {
                 .cors(Customizer.withDefaults())
                 .csrf(AbstractHttpConfigurer::disable) // API stateless com JWT: não usa cookies de sessão
                 .authorizeHttpRequests(auth -> auth
+                        // Mais específica primeiro: /auth/me exige login, embora o resto de /auth/** seja público
+                        .requestMatchers("/auth/me").authenticated()
                         .requestMatchers(
                                 "/auth/**",
                                 "/v3/api-docs/**",

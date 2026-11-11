@@ -5,9 +5,16 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
 
-/** O papel (role) NÃO é aceito aqui: todo cadastro público vira ROLE_USER. */
+/**
+ * Cadastro público: cria a conta de login (User) e o cadastro de cliente juntos.
+ * O papel (role) NÃO é aceito aqui: todo cadastro público vira ROLE_USER.
+ */
 @Data
 public class RegisterRequest {
+
+    @NotBlank(message = "O nome é obrigatório")
+    @Size(max = 120, message = "O nome deve ter no máximo 120 caracteres")
+    private String nome;
 
     @NotBlank(message = "O e-mail é obrigatório")
     @Email(message = "E-mail inválido")
