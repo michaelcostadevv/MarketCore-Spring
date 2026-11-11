@@ -52,6 +52,8 @@ exception   →  exceções de domínio e GlobalExceptionHandler
 
 > Se você já tinha rodado uma versão anterior do projeto, recrie o volume do banco uma vez com `docker compose down -v`. O usuário do MySQL e os tipos das colunas mudaram.
 
+> ⚠️ **Variáveis de ambiente do sistema têm prioridade sobre o `.env`.** Se a sua máquina tiver `MARKETCORE_DB_USER`, `MARKETCORE_DB_PASSWORD` etc. definidas (por exemplo, para rodar pela IDE), o Docker Compose usa esses valores. Com `MARKETCORE_DB_USER=root`, o MySQL nem inicia, porque `root` é reservado. Remova essas variáveis do sistema ou use valores iguais aos do `.env`.
+
 ### Localmente (sem Docker para a API)
 
 Defina as variáveis de ambiente do `.env.example` (com `MARKETCORE_DB_HOST=localhost`) e rode:
