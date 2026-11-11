@@ -12,7 +12,10 @@ Uma API RESTful para gestão de e-commerce, construída com Java e Spring Boot. 
 * **Build:** Maven
 
 ## ⚙️ Principais Funcionalidades
-* Cadastro de **clientes** e **produtos**, com listagens paginadas.
+* **Vitrine pública** de produtos com busca por nome, descrição e imagem, aberta a visitantes.
+* **Cadastro unificado**: criar a conta gera o login (`User`) e o cadastro de cliente (`Cliente`) na mesma transação.
+* **Autorização por objeto**: cada cliente só vê e cancela os **próprios pedidos**; o admin gerencia todos. Protege contra IDOR/BOLA (OWASP API #1).
+* **CORS** configurável para o frontend.
 * **Pedidos** com vários itens, cálculo de subtotal e total em `BigDecimal`.
 * **Baixa automática de estoque** na compra, na mesma transação do pedido: se qualquer item falhar, nada é gravado.
 * **Lock otimista** (`@Version`) para evitar vender além do estoque em compras simultâneas.
@@ -75,16 +78,16 @@ Com a aplicação rodando, acesse **http://localhost:8080/swagger-ui.html**.
 
 | Método | Rota | Acesso | Descrição |
 |---|---|---|---|
-| POST | `/auth/register` | público | Cria uma conta `ROLE_USER` e retorna o token |
+| POST | `/auth/register` | público | Cria conta + cadastro de cliente: `{"nome","email","password"}` |
 | POST | `/auth/login` | público | Retorna o token JWT |
-| GET | `/produtos` · `/produtos/{id}` | autenticado | Lista (paginada) / busca produtos |
+| GET | `/auth/me` | autenticado | Quem está logado: nome, e-mail, papel, `admin` e `clienteId` |
+| GET | `/produtos?nome=` · `/produtos/{id}` | **público** | Vitrine paginada com busca por nome / detalhe |
 | POST · PUT · DELETE | `/produtos` · `/produtos/{id}` | **ADMIN** | Gerencia o catálogo |
-| GET · POST | `/clientes` | autenticado | Lista (paginada) / cadastra clientes |
-| GET · PUT · DELETE | `/clientes/{id}` | autenticado | Busca / atualiza / remove um cliente |
-| POST | `/pedidos` | autenticado | Cria um pedido e baixa o estoque |
-| GET | `/pedidos?status=PAGO` | autenticado | Lista pedidos (filtro de status opcional) |
-| GET | `/pedidos/{id}` | autenticado | Busca um pedido |
-| PATCH | `/pedidos/{id}/status` | autenticado | Muda o status: `{"status": "PAGO"}` |
+| GET · POST · PUT · DELETE | `/clientes` · `/clientes/{id}` | **ADMIN** | Gerencia clientes |
+| POST | `/pedidos` | autenticado | Cria um pedido **para o usuário logado**: `{"itens":[{"produtoId":1,"quantidade":2}]}` |
+| GET | `/pedidos?status=PAGO` | autenticado | Cliente: os **seus** pedidos. Admin: todos |
+| GET | `/pedidos/{id}` | autenticado | Cliente: só os seus (404 se for de outra pessoa) |
+| PATCH | `/pedidos/{id}/status` | autenticado | Cliente: só `CANCELADO`. Admin: qualquer transição válida |
 
 Paginação: `?page=0&size=20&sort=id,desc` (máximo de 100 itens por página).
 
